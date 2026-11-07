@@ -1074,16 +1074,25 @@
   function openMock(it) {
     // sharp right away (our 1920 px copy) and the original on top as soon as it has loaded
     $('#mockScreen').style.backgroundImage = `url("${it.full}"), url("${it.desk || it.phone || it.thumb}")`;
-    const d = new Date();
-    $('#mockTime').textContent = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    $('#mockScreen').style.setProperty('--mock-img', `url("${it.phone || it.full}"), url("${it.desk || it.thumb}")`);
+    const d = new Date(), hm = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    $('#mockTime').textContent = hm; $('#mockPTime').textContent = hm; $('#mockPBig').textContent = hm; $('#mockTbTime').textContent = hm;
     $('#mockDate').textContent = d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
+    $('#mockPDate').textContent = d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
+    $('#mockTbDate').textContent = d.toLocaleDateString('tr-TR');
+    // tall wallpapers (and phones) start on the phone view, wide ones on the desktop
+    setMock(it.kind === 'img' && it.ratio < 1 || IS_PHONE ? 'phone' : 'desk');
     mock.hidden = false;
+  }
+  function setMock(m) {
+    $$('[data-mock]').forEach((x) => x.classList.toggle('is-active', x.dataset.mock === m));
+    mock.classList.toggle('is-lock', m === 'lock'); mock.classList.toggle('is-phone', m === 'phone');
   }
   $('#vPreviewBtn').onclick = () => cur && openMock(cur);
   mock.addEventListener('click', (e) => {
     const b = e.target.closest('[data-mock]');
-    if (b) { $$('[data-mock]').forEach((x) => x.classList.toggle('is-active', x === b)); mock.classList.toggle('is-lock', b.dataset.mock === 'lock'); return; }
-    if (!e.target.closest('.mock__switch')) mock.hidden = true;
+    if (b) return setMock(b.dataset.mock);
+    if (e.target.closest('[data-mockclose]')) mock.hidden = true;
   });
 
   document.addEventListener('keydown', (e) => {

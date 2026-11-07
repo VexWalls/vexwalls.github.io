@@ -250,17 +250,36 @@
 </div>
 
 <!-- Desktop preview overlay -->
+<!-- "Önizle": the wallpaper on a life-size Windows 11 desktop / lock screen / phone -->
 <div class="mock" id="mock" hidden>
   <div class="mock__screen" id="mockScreen">
-    <div class="mock__icons"><i></i><i></i><i></i><i></i></div>
-    <div class="mock__clock"><b id="mockTime"></b><span id="mockDate"></span></div>
-    <div class="mock__taskbar"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="mock__icons">
+      <span><svg viewBox="0 0 48 48"><rect x="6" y="9" width="36" height="24" rx="3" fill="#4cc2ff"/><rect x="9" y="12" width="30" height="18" rx="1" fill="#0b5ea8"/><rect x="18" y="35" width="12" height="3" fill="#9aa4b2"/><rect x="13" y="38" width="22" height="3" rx="1.5" fill="#c7cfd9"/></svg>Bu bilgisayar</span>
+      <span><svg viewBox="0 0 48 48"><path d="M12 14h24l-2.5 27a3 3 0 0 1-3 2.7H17.5a3 3 0 0 1-3-2.7L12 14Z" fill="#dfe6ee"/><rect x="9" y="10" width="30" height="5" rx="2" fill="#b9c4d0"/><path d="M19 20v18M24 20v18M29 20v18" stroke="#9aa6b4" stroke-width="2"/></svg>Geri Dönüşüm Kutusu</span>
+      <span><svg viewBox="0 0 48 48"><path d="M5 13a3 3 0 0 1 3-3h11l4 4h17a3 3 0 0 1 3 3v20a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V13Z" fill="#ffc83d"/><path d="M5 19h38v18a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V19Z" fill="#ffd96b"/></svg>Belgeler</span>
+    </div>
+    <div class="mock__lock"><b id="mockTime"></b><span id="mockDate"></span></div>
+    <div class="mock__taskbar">
+      <div class="mock__apps">
+        <i class="tb-start"><svg viewBox="0 0 24 24"><path fill="#4cc2ff" d="M3 3h8.5v8.5H3zM12.5 3H21v8.5h-8.5zM3 12.5h8.5V21H3zM12.5 12.5H21V21h-8.5z"/></svg></i>
+        <i class="tb-search"><svg viewBox="0 0 24 24"><path fill="#fff" d="M10.5 3a7.5 7.5 0 0 1 5.96 12.06l4.24 4.24-1.42 1.42-4.24-4.24A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>Ara</i>
+        <i><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill="#ffc83d"/></svg></i>
+        <i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#1fa7e0"/><path d="M6 13c1-4 5-6 9-4 2 1 3 3 3 5h-8c0 2 2 3 4 3 1 0 2 0 3-.6-1.5 2-4 3-6 2.6C8 18.5 6 16 6 13Z" fill="#7fe07a"/></svg></i>
+        <i><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="13" rx="2" fill="#2d7df6"/><path d="M8 6V5a4 4 0 0 1 8 0v1" stroke="#2d7df6" stroke-width="2" fill="none"/><rect x="7" y="9" width="4.5" height="4.5" fill="#f25022"/><rect x="12.5" y="9" width="4.5" height="4.5" fill="#7fba00"/><rect x="7" y="14" width="4.5" height="3.5" fill="#00a4ef"/><rect x="12.5" y="14" width="4.5" height="3.5" fill="#ffb900"/></svg></i>
+        <i><svg viewBox="0 0 24 24"><path fill="#c7cfd9" d="M12 8.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm8.3 5-1.6-.4a7 7 0 0 0 0-2.2l1.6-.4-1.5-2.6-1.6.5a7 7 0 0 0-1.9-1.1L15 5.7h-3l-.3 1.6a7 7 0 0 0-1.9 1.1l-1.6-.5-1.5 2.6 1.6.4a7 7 0 0 0 0 2.2l-1.6.4 1.5 2.6 1.6-.5a7 7 0 0 0 1.9 1.1l.3 1.6h3l.3-1.6a7 7 0 0 0 1.9-1.1l1.6.5 1.5-2.6Z"/></svg></i>
+      </div>
+      <div class="mock__tray"><span>⌃</span><svg viewBox="0 0 24 24"><path fill="#fff" d="M12 18.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM4.2 11.2a11 11 0 0 1 15.6 0l-1.4 1.4a9 9 0 0 0-12.8 0l-1.4-1.4Zm3 3a6.8 6.8 0 0 1 9.6 0l-1.4 1.4a4.8 4.8 0 0 0-6.8 0l-1.4-1.4Z"/></svg><svg viewBox="0 0 24 24"><path fill="#fff" d="M4 9h4l5-4v14l-5-4H4V9Zm12.5-1.5a6 6 0 0 1 0 9l-1.4-1.4a4 4 0 0 0 0-6.2l1.4-1.4Z"/></svg><b><span id="mockTbTime"></span><span id="mockTbDate"></span></b></div>
+    </div>
+    <div class="mock__phone"><div class="mock__pstatus"><span id="mockPTime"></span><span>▂▄▆ ◔ ▮</span></div><div class="mock__pclock"><b id="mockPBig"></b><span id="mockPDate"></span></div><div class="mock__papps"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="mock__pdock"><i></i><i></i><i></i><i></i></div></div>
   </div>
-  <div class="mock__switch">
-    <button data-mock="desk" class="is-active">Masaüstü</button>
-    <button data-mock="lock">Kilit ekranı</button>
+  <div class="mock__bar">
+    <div class="mock__switch">
+      <button data-mock="desk" class="is-active">Masaüstü</button>
+      <button data-mock="lock">Kilit ekranı</button>
+      <button data-mock="phone">Telefon</button>
+    </div>
+    <button class="mock__close" data-mockclose aria-label="Kapat">✕</button>
   </div>
-  <p class="mock__hint">Kapatmak için tıkla</p>
 </div>
 
 <div class="toasts" id="toasts"></div>

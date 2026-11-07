@@ -105,3 +105,49 @@ body:has(.ailb:not([hidden])) .totop, body:has(#mock:not([hidden])) .totop { opa
 body:has(#viewer:not([hidden])) .aifab, body:has(.pfp:not([hidden])) .aifab, body:has(.mk:not([hidden])) .aifab,
 body:has(.ailb:not([hidden])) .aifab, body:has(#mock:not([hidden])) .aifab,
 body:has(#viewer:not([hidden])) .aipop, body:has(.pfp:not([hidden])) .aipop, body:has(.mk:not([hidden])) .aipop { display: none !important; }
+
+/* ---------- "Önizle": life-size Windows 11 desktop / lock screen / phone ---------- */
+.mock { padding: 0 !important; gap: 0 !important; background: #000 !important; cursor: default !important; }
+.mock__screen { position: absolute !important; inset: 0; width: auto !important; aspect-ratio: auto !important; border-radius: 0 !important; box-shadow: none !important; background: #000 center/cover no-repeat; font-family: 'Segoe UI', Inter, sans-serif; color: #fff; }
+.mock__icons { left: 10px !important; top: 10px !important; gap: 14px !important; display: grid !important; }
+.mock__icons span { width: 78px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+.mock__icons svg { width: 42px; height: 42px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+.mock__taskbar { height: 48px !important; display: flex !important; justify-content: center !important; background: rgba(28,28,30,.82) !important; backdrop-filter: blur(30px) saturate(1.4); border-top: 1px solid rgba(255,255,255,.08); }
+.mock__apps { display: flex; align-items: center; gap: 4px; }
+.mock__apps i { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 6px; }
+.mock__apps i:hover { background: rgba(255,255,255,.08); }
+.mock__apps svg { width: 24px; height: 24px; }
+.mock__apps .tb-search { width: auto; display: flex; gap: 8px; padding: 0 14px 0 10px; margin: 0 4px; height: 34px; border-radius: 99px; background: rgba(255,255,255,.08); font-style: normal; font-size: 13px; color: #ddd; }
+.mock__apps .tb-search svg { width: 16px; height: 16px; }
+.mock__tray { position: absolute; right: 10px; top: 0; bottom: 0; display: flex; align-items: center; gap: 12px; font-size: 12px; }
+.mock__tray svg { width: 17px; height: 17px; }
+.mock__tray b { display: flex; flex-direction: column; align-items: flex-end; font-weight: 400; line-height: 1.3; margin-left: 6px; }
+.mock__lock { position: absolute; left: 0; right: 0; top: 11%; text-align: center; display: none; text-shadow: 0 4px 24px rgba(0,0,0,.45); }
+.mock__lock b { display: block; font: 600 clamp(60px, 14vh, 150px)/1 'Segoe UI', Inter, sans-serif; letter-spacing: -.02em; }
+.mock__lock span { display: block; margin-top: 10px; font-size: clamp(16px, 2.6vh, 26px); font-weight: 500; }
+.mock.is-lock .mock__icons, .mock.is-lock .mock__taskbar { display: none !important; }
+.mock.is-lock .mock__lock { display: block; }
+.mock__clock { display: none !important; }
+/* phone */
+.mock__phone { display: none; }
+.mock.is-phone .mock__screen { background: radial-gradient(circle at 50% 40%, #1a1d26, #050608) !important; }
+.mock.is-phone .mock__icons, .mock.is-phone .mock__taskbar, .mock.is-phone .mock__lock { display: none !important; }
+.mock.is-phone .mock__phone { display: block; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -54%); height: min(86vh, 860px); aspect-ratio: 9 / 19.5; border-radius: 44px; overflow: hidden;
+  background: inherit; background-image: var(--mock-img); background-size: cover; background-position: center; box-shadow: 0 0 0 10px #111, 0 0 0 12px #2b2e36, 0 40px 100px rgba(0,0,0,.8); }
+.mock__pstatus { display: flex; justify-content: space-between; padding: 14px 26px 0; font-size: 13px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.mock__pclock { text-align: center; margin-top: 9%; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
+.mock__pclock b { display: block; font: 600 clamp(44px, 9vh, 84px)/1 'Segoe UI', Inter, sans-serif; }
+.mock__pclock span { font-size: 14px; font-weight: 500; }
+.mock__papps { position: absolute; left: 7%; right: 7%; bottom: 22%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 0; justify-items: center; }
+.mock__papps i, .mock__pdock i { width: 52px; aspect-ratio: 1; border-radius: 15px; background: rgba(255,255,255,.22); backdrop-filter: blur(10px); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.mock__pdock { position: absolute; left: 5%; right: 5%; bottom: 4%; padding: 12px 0; border-radius: 28px; background: rgba(255,255,255,.14); backdrop-filter: blur(16px); display: flex; justify-content: space-around; }
+/* controls float above the picture */
+.mock__bar { position: absolute; left: 50%; bottom: 66px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; z-index: 3; transition: opacity .25s; }
+.mock.is-lock .mock__bar, .mock.is-phone .mock__bar { bottom: 22px; }
+.mock__switch { background: rgba(10,12,18,.72) !important; backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.12); }
+.mock__close { width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: rgba(10,12,18,.72); color: #fff; font-size: 15px; cursor: pointer; }
+.mock__hint { display: none !important; }
+@media (max-width: 700px) { .mock__icons { display: none !important; } .mock__apps i:nth-child(n+5) { display: none; } }
+.mock__taskbar .mock__apps i { width: 40px !important; height: 40px; aspect-ratio: auto; background: transparent !important; }
+.mock__taskbar .mock__apps .tb-search { width: auto !important; height: 34px; background: rgba(255,255,255,.08) !important; }
+html:has(.mock:not([hidden])) { overflow: hidden; }
