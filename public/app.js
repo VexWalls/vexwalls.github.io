@@ -29,8 +29,14 @@
     { key: 'minimal',   name: 'Minimal',         q: '+minimalism',       c: '100', img: 'https://th.wallhaven.cc/lg/zp/zpq1dg.jpg' },
     { key: 'soyut',     name: 'Soyut',           q: '+abstract',         c: '100', img: 'https://th.wallhaven.cc/lg/w5/w5m6yr.jpg' },
     { key: 'karanlik',  name: 'Karanlık',        q: '+dark',             c: '100', img: 'https://th.wallhaven.cc/lg/yq/yqqvv7.jpg' },
-    // original villains only: reapers, demons, jesters, masked figures (no Joker / LoL etc.)
     { key: 'kotu',      name: 'Kötü Karakterler', q: '+"Grim Reaper"',   c: '100', img: 'https://th.wallhaven.cc/lg/j5/j5o32w.jpg' },
+    // games, films, series, cartoons, heroes, anime: every character (site is for the owner and friends)
+    { key: 'oyun',      name: 'Oyunlar',         q: '+"video games"',    c: '110', img: 'https://th.wallhaven.cc/lg/x8/x8gkpo.jpg' },
+    { key: 'film',      name: 'Filmler',         q: '+movies',           c: '110', img: 'https://th.wallhaven.cc/lg/zx/zxlmkg.jpg' },
+    { key: 'dizi',      name: 'Diziler',         q: '+"TV series"',      c: '110', img: 'https://th.wallhaven.cc/lg/k7/k75977.jpg' },
+    { key: 'cizgi',     name: 'Çizgi Film & Animasyon', q: '+cartoon',   c: '110', img: 'https://th.wallhaven.cc/lg/pk/pkgkkp.jpg' },
+    { key: 'kahraman',  name: 'Süper Kahramanlar', q: '+superheroes',    c: '110', img: 'https://th.wallhaven.cc/lg/pk/pkmpmm.jpg' },
+    { key: 'animedunya', name: 'Anime Dünyası',  q: '+anime',            c: '010', img: 'https://th.wallhaven.cc/lg/28/281d5y.jpg' },
   ];
   // Mixed views (Keşfet, home slideshow) show only a little of these categories.
   const RARE_CATS = new Set(['karakter', 'kotu']);
@@ -40,6 +46,9 @@
   };
   // [key, name, group]  key = "<source>:<category>"  (mb = MotionBGs, mx = Mixkit). Generic tags only.
   const LIVE_CATS = [
+    ['mb:games', 'Oyunlar', 'Oyun, Anime & Film'], ['mb:league-of-legends', 'League of Legends', 'Oyun, Anime & Film'], ['mb:genshin-impact', 'Genshin Impact', 'Oyun, Anime & Film'],
+    ['mb:anime', 'Anime', 'Oyun, Anime & Film'], ['mb:superhero', 'Süper Kahramanlar', 'Oyun, Anime & Film'], ['mb:marvel', 'Marvel', 'Oyun, Anime & Film'],
+    ['mb:joker', 'Joker', 'Oyun, Anime & Film'], ['mb:cartoon', 'Çizgi Film', 'Oyun, Anime & Film'],
     ['mb:anime-nature', 'Anime Manzara', 'Çizim & Sanat'], ['mb:japan', 'Japonya', 'Çizim & Sanat'], ['mb:samurai', 'Samuray', 'Çizim & Sanat'],
     ['mb:fantasy', 'Fantastik', 'Çizim & Sanat'], ['mb:knight', 'Şövalye', 'Çizim & Sanat'],
     ['mb:cyberpunk', 'Siberpunk', 'Çizim & Sanat'], ['mb:dark', 'Karanlık', 'Çizim & Sanat'],
@@ -55,6 +64,8 @@
     ['hayvan', 'Hayvanlar'], ['kedi', 'Kediler'], ['neon', 'Neon'], ['piksel', 'Piksel Sanat'], ['anime', 'Anime Karakter']];
   // the files live on the website; from the PC version they're read from there (GitHub Pages allows it)
   const SITE = /github\.io$/.test(location.hostname) || new URLSearchParams(location.search).has('online') ? '' : 'https://vexwalls.github.io/';
+  // search on the website goes through our Cloudflare service (worker/ai.js): Wallhaven has no CORS
+  const SEARCH_URL = 'https://vexwalls-ai.yigithantalhas.workers.dev/';
 
   const ICON = {
     heart: '<svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-10-9.4C.4 8.4 2.3 4.5 6 4.1c2-.2 3.6.8 4.6 2.2l1.4 1.8 1.4-1.8c1-1.4 2.6-2.4 4.6-2.2 3.7.4 5.6 4.3 4 7.5C19.5 16.4 12 21 12 21Z"/></svg>',
@@ -559,7 +570,7 @@
         if (S.page === 1) $('#gridCount').textContent = all.length ? nf.format(all.length) + ' profil resmi' : '';
         list = all.slice((S.page - 1) * 36, S.page * 36);
         if (S.page * 36 >= all.length) S.done = true;
-      } else if (CATALOG && S.mode === 'static' && !(S.cat.key === 'kesfet' && !S.q && !S.colors) && !(API && S.title.startsWith('#'))) {
+      } else if (CATALOG && S.mode === 'static' && !(S.cat.key === 'kesfet' && !S.q && !S.colors) && !(S.q && (API || !/^id:/.test(S.q)))) {
         // website version: filter the nightly catalog in the browser
         const all = S.page === 1 || !S.all ? (S.all = await catalogQuery()) : S.all;   // one order for all pages
         if (token !== S.token) return;
@@ -579,14 +590,17 @@
         if (token !== S.token) return;
         if (S.page === 1) $('#gridCount').textContent = 'Her seferinde farklı · tüm kategorilerden karışık';
       } else if (S.mode === 'static') {
-        const p = new URLSearchParams({ q: S.q || S.cat.q, categories: S.q ? '110' : S.cat.c, sorting: S.sort, atleast: S.res, page: S.page });
+        const p = new URLSearchParams({ q: S.q || S.cat.q, categories: S.q ? '111' : S.cat.c, sorting: S.sort, atleast: S.res, page: S.page });
         const tagSearch = S.title.startsWith('#');            // tag pages: best of all time, so they're never empty
         if (tagSearch) p.set('sorting', 'favorites');
+        else if (S.q && S.sort === 'toplist') p.set('sorting', 'favorites');   // searches: most loved of all time, never empty
         else if (S.sort === 'toplist' && S.range) p.set('topRange', S.range);
         if (S.ratio) p.set('ratios', S.ratio);
         if (S.colors) p.set('colors', S.colors);
         if (S.seed) p.set('seed', S.seed);
-        const r = await fetch(API + '/api/search?' + p).then((x) => x.json());
+        // free-text search: the PC helper, or (website) our Cloudflare service that searches all of Wallhaven
+        const r = API ? await fetch(API + '/api/search?' + p).then((x) => x.json())
+          : await fetch(SEARCH_URL + '?search=' + encodeURIComponent(p.get('q')) + '&' + p).then((x) => x.json());
         if (token !== S.token) return;
         if (!r.data) throw new Error(r.error || 'Arama başarısız');
         if (r.blocked) { S.done = true; showEmpty('', true); return; }
@@ -742,7 +756,7 @@
   function showEmpty(msg, blocked) {
     const e = $('#empty');
     e.hidden = false;
-    e.innerHTML = blocked ? '<b>Bu içerik VexWalls\'da yok</b>Telif hakkı nedeniyle oyun, film, dizi ve anime karakterlerine ait duvar kağıtlarını yayınlamıyoruz. Doğa, uzay, şehir veya sanat aramayı dene.'
+    e.innerHTML = blocked ? '<b>Bu aramaya izin verilmiyor</b>Başka bir şey ara.'
       : msg ? `<b>Bir sorun oluştu</b>${esc(msg)}`
       : S.mode === 'recent' ? '<b>Henüz bir şey kullanmadın</b>Uyguladığın, indirdiğin ya da hareketli olarak açtığın duvar kağıtları burada görünür.'
       : S.mode === 'fav' ? '<b>Henüz favorin yok</b>Beğendiğin duvar kağıtlarındaki ♥ işaretine bas, burada toplansın.' + (window.CryWallAccount && !window.CryWallAccount.user ? '<br><br><button class="btn btn--primary btn--sm" onclick="CryWallAccount.open(\'signup\')">Giriş yap · favorilerin kaybolmasın</button>' : '')

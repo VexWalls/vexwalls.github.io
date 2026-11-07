@@ -18,8 +18,17 @@ $CharacterQuery = '+"original characters" +"anime girls"'
 $FranchiseMore = ' -"God of War" -"Assassin''s Creed" -Destiny -Overwatch -"League of Legends" -"World of Warcraft" -Diablo -Skyrim -"The Elder Scrolls" -"Final Fantasy" -"For Honor" -"Ghost of Tsushima" -Sekiro -Bloodborne -"Dark Souls" -"Elden Ring" -"The Witcher" -Warhammer -Halo -"The Lord of the Rings" -"Game of Thrones" -Batman -"Spider-Man" -"Mortal Kombat" -"Monster Hunter"'
 # cartoons / films / games that slipped through (e.g. My Little Pony showed up in Fantastik)
 $FranchiseMore += ' -"My Little Pony" -"My Little Pony: Friendship is Magic" -Hasbro -Disney -Pixar -"Harry Potter" -Transformers -"Sonic the Hedgehog" -Nintendo -"Super Mario" -Minecraft -Fortnite -"Adventure Time" -SpongeBob -"The Simpsons" -"Rick and Morty" -"Gravity Falls" -Shrek -"Avatar (movie)" -"Avatar: The Last Airbender"'
+# Copyright filter switch. The site is now for the owner and friends only (owner's decision,
+# 2026-11-07): every character, game, film, series and celebrity may show up. Only adult
+# content stays out (Wallhaven purity=100). Set to $true to bring the old filter back.
+$CopyrightFilter = $false
 # Builds the exclusion part of a Wallhaven query for a search text.
 function Get-WhFilter([string]$q) {
+    if (-not $CopyrightFilter) {
+        # scenery categories still keep people out (user wish); character categories / searches show everything
+        if ($q -like '*original characters*' -or $q -like '*video games*' -or $q -like '*movies*' -or $q -like '*TV series*' -or $q -like '*cartoon*' -or $q -like '*superheroes*' -or $q -like '*anime*') { return '' }
+        return $GirlExclude
+    }
     if ($q -like '*original characters*') { return ($WhExclude -replace ' -"anime girls"', '') + $FranchiseMore }
     return $WhExclude + $GirlExclude + $FranchiseMore
 }
@@ -27,7 +36,8 @@ function Get-WhFilter([string]$q) {
 $GirlTitle = [regex]::new('(?i)\b(girl|girls|woman|women|lady|waifu|maid|princess|goddess|she|her)\b')
 
 # MotionBGs: only these generic tags are used (no franchise tags).
-$MbTags = @('anime-nature', 'japan', 'torii', 'samurai', 'fantasy', 'dragon', 'knight', 'space', 'astronaut', 'black-hole',
+$CharTags = @('games', 'anime', 'league-of-legends', 'joker', 'superhero', 'marvel', 'genshin-impact', 'cartoon')
+$MbTags = @('games','anime', 'league-of-legends', 'joker', 'superhero', 'marvel', 'genshin-impact', 'cartoon', 'anime-nature', 'japan', 'torii', 'samurai', 'fantasy', 'dragon', 'knight', 'space', 'astronaut', 'black-hole',
     'rain', 'night', 'sunset', 'forest', 'winter', 'snow', 'water', 'mountain', 'autumn-leaves', 'landscape', 'nature',
     'car', 'sports-cars', 'animal', 'cat', 'dog', 'dark', 'cyberpunk', 'technology', 'purple', 'blue', 'red', 'white')
 
@@ -47,7 +57,7 @@ $Blocked = [regex]::new('(?i)\b(' + (@(
     'kabaneri', 'mumei', 'ghost in the shell', 'motoko', 'marin kitagawa', 'stella sora', 'otoha', 'hsin', 'dong xuelian', 'velina', 'alice kuonji', 'uncle panda', 'disney', 'pixar', 'harry potter', 'evangelion',
     'messi', 'ronaldo', 'neymar', 'mbappe', 'barbie', 'transformers', 'godzilla', 'kaiju', 'shrek', 'minion', 'abi toads', 'st ar-15', 'ar-15'
 ) -join '|') + ')\b')
-function Test-Blocked([string]$text) { return [bool]($text -and $Blocked.IsMatch($text)) }
+function Test-Blocked([string]$text) { return [bool]($CopyrightFilter -and $text -and $Blocked.IsMatch($text)) }
 
 # Live wallpaper lists. $cat = "<source>:<category>"
 #   mb = MotionBGs (anime, games, trending; empty category = newest)
@@ -68,7 +78,7 @@ function Get-LiveList([string]$cat, [int]$page) {
             $n = $m.Groups[3].Value; $slug = $m.Groups[2].Value; $res = $m.Groups[4].Value
             if ($seen[$n]) { continue }; $seen[$n] = 1
             if ((Test-Blocked $m.Groups[1].Value) -or (Test-Blocked ($slug -replace '-', ' '))) { continue }
-            if ($GirlTitle.IsMatch($m.Groups[1].Value)) { continue }
+            if ($GirlTitle.IsMatch($m.Groups[1].Value) -and $key -notin $CharTags) { continue }   # character categories keep everyone
             $items += @{
                 id      = "mb-$n"
                 title   = [Net.WebUtility]::HtmlDecode($m.Groups[1].Value)

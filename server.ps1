@@ -337,10 +337,11 @@ while ($listener.IsListening) {
                 if ($k -in 'q', 'categories') { continue }
                 $v = $req.QueryString[$k]; if ($v) { $qs += "$k=" + [uri]::EscapeDataString($v) }
             }
-            $cat = if ($req.QueryString['categories'] -eq '010') { '010' } else { '100' }   # no 'people' (celebrities)
+            $cat = if ($req.QueryString['categories'] -eq '010') { '010' } elseif ($CopyrightFilter) { '100' } else { '111' }
             $qs += "categories=$cat"
-            $extra = if ($cat -eq '010') { ' -"Makoto Shinkai" -"Studio Ghibli" -"Kimi no Na Wa" -"Genshin Impact" -"Honkai: Star Rail" -"Hatsune Miku"' } else { '' }
-            $qs += 'q=' + [uri]::EscapeDataString(($userQ + (Get-WhFilter $userQ) + $extra).Trim())
+            $extra = if ($CopyrightFilter -and $cat -eq '010') { ' -"Makoto Shinkai" -"Studio Ghibli" -"Kimi no Na Wa" -"Genshin Impact" -"Honkai: Star Rail" -"Hatsune Miku"' } else { '' }
+            $filt = if ($CopyrightFilter) { Get-WhFilter $userQ } else { '' }   # searches show everything (adult content stays off: purity=100)
+            $qs += 'q=' + [uri]::EscapeDataString(($userQ + $filt + $extra).Trim())
             $qs += 'purity=100'   # safe-for-work only
             Send-Json $ctx (Get-Cached ("https://wallhaven.cc/api/v1/search?" + ($qs -join '&')))
         }

@@ -184,12 +184,12 @@
   // ---------- the corner button + chat box ----------
   function build() {
     fab = document.createElement('button');
-    fab.className = 'aifab'; fab.type = 'button'; fab.title = 'Yapay zekayla duvar kağıdı yap'; fab.setAttribute('aria-label', 'Yapay zeka');
+    fab.className = 'aifab'; fab.type = 'button'; fab.title = "VexAI · duvar kağıdı çiz"; fab.setAttribute("aria-label", "VexAI");
     fab.innerHTML = ICON;
     pop = document.createElement('div');
     pop.className = 'aipop'; pop.hidden = true;
     pop.innerHTML = `
-      <div class="aipop__head"><b>${ICON}Yapay zeka</b><button type="button" class="aipop__x" aria-label="Kapat">✕</button></div>
+      <div class="aipop__head"><b>${ICON}VexAI</b><button type="button" class="aipop__x" aria-label="Kapat">✕</button></div>
       <div class="aipop__list"><p class="aipop__hi">Ne istersen yaz. Resmin <b>ChatGPT</b>'de çizilir: isteğin hazır yazılmış olarak <b>yeni sekmede ChatGPT açılır</b>, resmi oradan indirirsin (ücretsiz ChatGPT hesabın yeter).</p>${dropHtml()}</div>
       <form class="aipop__form" autocomplete="off">
         <textarea rows="2" maxlength="300" placeholder="Hayal et ve yaz…"></textarea>

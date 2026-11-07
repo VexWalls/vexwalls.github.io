@@ -21,8 +21,8 @@
   const STYLES = [['', 'Serbest'], ['anime art style, vibrant, detailed background', 'Anime'], ['photorealistic, 8k photography, cinematic lighting', 'Gerçekçi'],
     ['epic fantasy concept art, dramatic lighting', 'Fantastik'], ['cyberpunk, neon lights, futuristic', 'Siberpunk'], ['minimalist, clean, flat colors', 'Minimal'],
     ['oil painting, brush strokes', 'Yağlı boya'], ['pixel art, 16-bit', 'Piksel'], ['dark gothic, moody, mysterious', 'Karanlık']];
-  const MOTIONS = [['none', 'Yok'], ['zoom', 'Yavaş yakınlaşma'], ['pan', 'Kayma'], ['flow', 'Renk akışı'], ['snow', 'Kar'], ['rain', 'Yağmur'],
-    ['stars', 'Yıldızlar'], ['fireflies', 'Ateş böcekleri'], ['bubbles', 'Baloncuklar'], ['petals', 'Yapraklar']];
+  const MOTIONS = [['none', 'Yok'], ['zoom', 'Sinematik yakınlaşma'], ['pan', 'Yavaş kayma'], ['drift', 'Süzülme']];
+  const FXS = [['fog', 'Sis'], ['rain', 'Yağmur'], ['snow', 'Kar'], ['dust', 'Işık zerreleri'], ['rays', 'Işık huzmeleri'], ['stars', 'Yıldız ışıltısı']];
   const FONTS = [['Plus Jakarta Sans', 'Yumuşak'], ['Space Grotesk', 'Modern'], ['Inter', 'Sade'], ['Georgia', 'Klasik'], ['Courier New', 'Daktilo'], ['Impact', 'Kalın']];
   // never sent to the AI: franchise characters / adult content (same idea as the site's filter)
   const BLOCK = /\b(joker|batman|shaco|league of legends|lol|pokemon|pikachu|naruto|goku|marvel|spider-?man|disney|mickey|elsa|harry potter|star wars|mario|sonic|genshin|valorant|fortnite|minecraft|nude|naked|nsfw|sex|porn|çıplak|ciplak|seks|erotik|gore)\b/i;
@@ -32,11 +32,23 @@
     img: null, imgZoom: 1, imgX: 0.5, imgY: 0.5,
     blur: 0, bright: 100, sat: 100, grain: 0, vignette: 30, dark: 0,
     text: '', font: 'Plus Jakarta Sans', textSize: 90, textColor: '#ffffff', glow: true, tx: 0.5, ty: 0.5, bold: true,
-    motion: 'none', speed: 1, style: '', prompt: '',
+    motion: 'none', camAmt: 8, camSpeed: 1, style: '', prompt: '',
+    contrast: 100, hue: 0, temp: 0,
+    loop: 10, fps: 30, q: 'high',
+    // atmosphere layers (several can be on at once); amt/size/op in %, speed = cycles per loop, dir = wind in degrees
+    fx: {
+      fog:   { on: false, amt: 100, size: 100, speed: 1, dir: 0, op: 100, color: '#ffffff' },
+      rain:  { on: false, amt: 100, size: 100, speed: 1, dir: 8, op: 100, color: '#cddcf0' },
+      snow:  { on: false, amt: 100, size: 100, speed: 1, dir: 0, op: 100, color: '#ffffff' },
+      dust:  { on: false, amt: 100, size: 100, speed: 1, dir: 0, op: 100, color: '#ffe6b4' },
+      rays:  { on: false, amt: 100, size: 100, speed: 1, dir: 0, op: 100, color: '#fff0d2' },
+      stars: { on: false, amt: 100, size: 100, speed: 1, dir: 0, op: 100, color: '#ffffff' },
+    },
   };
   // address of our AI service (worker/ai.js on Cloudflare); empty = AI not set up yet
   const AI_URL = 'https://vexwalls-ai.yigithantalhas.workers.dev/';
-  const LOOP = 10;                       // seconds; every motion is periodic, so the video loops seamlessly
+  const FX_DEFAULT = JSON.parse(JSON.stringify(S.fx));
+  const animated = () => S.motion !== 'none' || Object.values(S.fx).some((f) => f.on);
   let box, cv, ctx, raf = 0, t0 = performance.now(), grainTile = null, aiBusy = false, aiReady = 0;
 
   // ---------- tiny deterministic random ----------
@@ -48,9 +60,9 @@
 
   // ---------- drawing ----------
   function drawBackground(c, W, H, t) {
-    const ph = (2 * Math.PI * t) / LOOP;
+    const ph = (2 * Math.PI * t) / S.loop;
     if (S.bg === 'gradient') {
-      const a = (S.angle + (S.motion === 'flow' ? Math.sin(ph) * 25 : 0)) * Math.PI / 180;
+      const a = (S.angle + (S.motion !== 'none' ? Math.sin(ph * S.camSpeed) * S.camAmt * 3 : 0)) * Math.PI / 180;   // colours drift with the camera
       const r = Math.hypot(W, H) / 2, cx = W / 2, cy = H / 2;
       const g = c.createLinearGradient(cx - Math.cos(a) * r, cy - Math.sin(a) * r, cx + Math.cos(a) * r, cy + Math.sin(a) * r);
       S.colors.forEach((col, i) => g.addColorStop(i / (S.colors.length - 1), col));
@@ -61,7 +73,7 @@
       c.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 6; i++) {
         const bx = r(), by = r(), rad = (0.35 + r() * 0.4) * m, col = S.colors[i % 2];
-        const mv = S.motion === 'flow' ? 0.08 : 0.015;
+        const mv = S.motion !== 'none' ? S.camAmt / 100 : 0.015;
         const x = (bx + Math.cos(ph + i) * mv) * W, y = (by + Math.sin(ph * (i % 2 ? 1 : -1) + i) * mv) * H;
         const g = c.createRadialGradient(x, y, 0, x, y, rad);
         g.addColorStop(0, col + 'aa'); g.addColorStop(1, col + '00');
@@ -73,10 +85,13 @@
     } else if (S.img) {
       const iw = S.img.naturalWidth, ih = S.img.naturalHeight;
       let z = S.imgZoom;
-      if (S.motion === 'zoom') z *= 1 + 0.07 * (0.5 - 0.5 * Math.cos(ph));
+      const amt = S.camAmt / 100, cph = ph * S.camSpeed;             // camera: strength and speed (whole cycles: seamless loop)
+      if (S.motion === 'zoom') z *= 1 + amt * (0.5 - 0.5 * Math.cos(cph));      // slow push-in and back, eased
+      if (S.motion === 'pan' || S.motion === 'drift') z *= 1 + amt * 1.2;      // a little room to glide
       const sc = Math.max(W / iw, H / ih) * z, dw = iw * sc, dh = ih * sc;
       let fx = S.imgX, fy = S.imgY;
-      if (S.motion === 'pan') fx = 0.5 + Math.sin(ph) * 0.5;
+      if (S.motion === 'pan') { fx = 0.5 + Math.sin(cph) * 0.45; fy = 0.5 + Math.sin(cph * 2) * 0.1; }
+      if (S.motion === 'drift') { fx = 0.5 + Math.sin(cph) * 0.35; fy = 0.5 + Math.cos(cph) * 0.35; }
       const dx = (W - dw) * fx, dy = (H - dh) * fy;
       c.drawImage(S.img, 0, 0, iw, ih, dx, dy, dw, dh);
     } else {
@@ -97,45 +112,126 @@
     }
   }
 
-  function drawParticles(c, W, H, t) {
-    const m = S.motion, u = Math.min(W, H) / 1080, ph = t / LOOP;
-    if (!['snow', 'rain', 'stars', 'fireflies', 'bubbles', 'petals'].includes(m)) return;
-    c.save();
-    PARTS.forEach((p, i) => {
-      if (m === 'snow') {
-        const y = ((p.y + ph * (1 + Math.floor(p.s * 2))) % 1) * (H + 40) - 20;
-        const x = (p.x + Math.sin(2 * Math.PI * (ph * 2 + p.p)) * 0.01) * W;
-        c.fillStyle = `rgba(255,255,255,${0.5 + p.k * 0.5})`; c.beginPath(); c.arc(x, y, (1.5 + p.s * 3.5) * u, 0, 7); c.fill();
-      } else if (m === 'rain') {
-        if (i > 110) return;
-        const n = 2 + Math.floor(p.s * 3), y = ((p.y + ph * n) % 1) * (H + 120) - 60, x = p.x * W, l = (30 + p.s * 40) * u;
-        c.strokeStyle = `rgba(190,210,255,${0.25 + p.k * 0.35})`; c.lineWidth = 1.3 * u;
-        c.beginPath(); c.moveTo(x, y); c.lineTo(x - l * 0.15, y + l); c.stroke();
-      } else if (m === 'stars') {
-        const a = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(2 * Math.PI * (ph * (1 + Math.floor(p.s * 3)) + p.p)));
-        c.fillStyle = `rgba(255,255,255,${a})`; c.beginPath(); c.arc(p.x * W, p.y * H, (0.8 + p.k * 1.8) * u, 0, 7); c.fill();
-      } else if (m === 'fireflies') {
-        if (i > 45) return;
-        const x = (p.x + Math.sin(2 * Math.PI * (ph + p.p)) * 0.04) * W, y = (p.y + Math.cos(2 * Math.PI * (ph * 2 + p.k)) * 0.03) * H;
-        const a = 0.5 + 0.5 * Math.sin(2 * Math.PI * (ph * 3 + p.p)), r = (6 + p.s * 8) * u;
-        const g = c.createRadialGradient(x, y, 0, x, y, r * 3);
-        g.addColorStop(0, `rgba(255,236,150,${a})`); g.addColorStop(1, 'rgba(255,236,150,0)');
-        c.fillStyle = g; c.beginPath(); c.arc(x, y, r * 3, 0, 7); c.fill();
-      } else if (m === 'bubbles') {
-        if (i > 50) return;
-        const y = H + 60 - ((p.y + ph * (1 + Math.floor(p.s * 2))) % 1) * (H + 120);
-        const x = (p.x + Math.sin(2 * Math.PI * (ph * 2 + p.p)) * 0.015) * W, r = (6 + p.s * 22) * u;
-        c.strokeStyle = 'rgba(255,255,255,.45)'; c.lineWidth = 1.5 * u; c.beginPath(); c.arc(x, y, r, 0, 7); c.stroke();
-        c.fillStyle = 'rgba(255,255,255,.08)'; c.fill();
-      } else if (m === 'petals') {
-        if (i > 70) return;
-        const y = ((p.y + ph * (1 + Math.floor(p.s * 2))) % 1) * (H + 60) - 30;
-        const x = ((p.x + ph * 0.5 + Math.sin(2 * Math.PI * (ph * 2 + p.p)) * 0.02) % 1) * W;
-        c.save(); c.translate(x, y); c.rotate(2 * Math.PI * (ph * 2 + p.k));
-        c.fillStyle = `rgba(255,${150 + Math.floor(p.k * 60)},${190 + Math.floor(p.s * 40)},.85)`;
-        c.beginPath(); c.ellipse(0, 0, (7 + p.s * 6) * u, (4 + p.s * 3) * u, 0, 0, 7); c.fill(); c.restore();
+  // ---------- motion effects: subtle, layered, out-of-focus (no cartoon shapes) ----------
+  // Everything is periodic in S.loop seconds (integer cycles), so the exported video loops seamlessly.
+  let SPRITE = null, FOG = null;
+  function sprite() {        // soft round light, drawn scaled (looks like an out-of-focus flake / mote)
+    if (!SPRITE) {
+      SPRITE = document.createElement('canvas'); SPRITE.width = SPRITE.height = 64;
+      const g = SPRITE.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.35, 'rgba(255,255,255,.75)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+    }
+    return SPRITE;
+  }
+  function fogTex() {        // seamless (left/right) soft cloud texture
+    if (!FOG) {
+      FOG = document.createElement('canvas'); FOG.width = 1024; FOG.height = 512;
+      const g = FOG.getContext('2d'), r = rng(42);
+      for (let i = 0; i < 70; i++) {
+        const x = r() * 1024, y = 120 + r() * 300, rad = 60 + r() * 170, a = 0.035 + r() * 0.07;
+        [x - 1024, x, x + 1024].forEach((xx) => {
+          const gr = g.createRadialGradient(xx, y, 0, xx, y, rad);
+          gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+          g.fillStyle = gr; g.fillRect(xx - rad, y - rad, rad * 2, rad * 2);
+        });
       }
-    });
+    }
+    return FOG;
+  }
+  // big particle pools; "Yoğunluk" uses a part of them (up to 3x the normal amount)
+  const LAYERS = { snow: [particles(660, 11), particles(270, 12), particles(48, 13)], rain: [particles(960, 21), particles(210, 22)], dust: [particles(210, 31)], stars: [particles(480, 41)] };
+  const TAU = Math.PI * 2;
+  const tinted = {};                     // coloured copies of the soft sprite
+  function spriteOf(col) {
+    if (!tinted[col]) {
+      const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+      g.drawImage(sprite(), 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, 64, 64);
+      tinted[col] = c;
+    }
+    return tinted[col];
+  }
+  const take = (arr, base, amt) => arr.slice(0, Math.min(arr.length, Math.round(base * amt / 100)));
+  const cycles = (base, sp) => Math.max(1, Math.round(base * sp));        // whole cycles per loop → seamless video
+  function drawParticles(c, W, H, t) {
+    const u = Math.min(W, H) / 1080, ph = t / S.loop, F = S.fx;
+    c.save();
+    if (F.fog.on) {
+      const f = fogTex(), o = F.fog, sz = o.size / 100;
+      c.globalCompositeOperation = 'screen';
+      const fogC = o.color.toLowerCase();
+      [[1, 0.55, 0.45, 1], [-1, 0.75, 0.6, 1.4]].forEach(([dir, a, top, scale]) => {
+        const tw = W * scale * sz, th = H * 0.75 * scale * sz, n = cycles(1, o.speed) * (o.dir < 0 ? -1 : 1);
+        const off = ((dir * n * ph * tw) % tw + tw) % tw;
+        c.globalAlpha = Math.min(1, a * (o.amt / 100)) * (o.op / 100);
+        for (let x = off - tw; x < W; x += tw) c.drawImage(f, x, H * top - th * 0.25, tw, th);
+      });
+      if (fogC !== '#ffffff') { c.globalCompositeOperation = 'color'; c.globalAlpha = 0.25 * o.op / 100; c.fillStyle = fogC; c.fillRect(0, H * 0.3, W, H * 0.7); }
+      c.globalCompositeOperation = 'source-over';
+    }
+    if (F.rain.on) {
+      const o = F.rain, wind = Math.tan(o.dir * Math.PI / 180);
+      c.globalAlpha = 0.18 * o.op / 100; c.fillStyle = 'rgb(12,20,34)'; c.fillRect(0, 0, W, H);      // wet, cooler light
+      [[12, 22, 0.13, 0.8, 14, 320], [45, 80, 0.2, 1.4, 20, 70]].forEach(([l0, l1, a, lw, speed, base], L) => {
+        c.strokeStyle = o.color; c.lineWidth = lw * u * Math.sqrt(o.size / 100); c.lineCap = 'round';
+        const n = cycles(speed, o.speed);
+        c.beginPath();
+        take(LAYERS.rain[L], base, o.amt).forEach((p) => {
+          const len = (l0 + p.s * (l1 - l0)) * u * (o.size / 100), prog = (p.y + ph * n) % 1;
+          const y = prog * (H + len * 2) - len, x = (p.x + wind * prog * H / W) * W;     // wind: slanted fall, still loops
+          c.moveTo(x, y); c.lineTo(x - len * wind, y + len);
+        });
+        c.globalAlpha = a * o.op / 100; c.stroke();
+      });
+    }
+    if (F.snow.on) {
+      const o = F.snow, wind = Math.tan(o.dir * Math.PI / 180), sp = spriteOf(o.color);
+      // far: tiny & faint, mid: small, near: big, out of focus, fast (depth of field)
+      [[0.7, 1.6, 0.55, 1, 0.006, 220], [2, 3.6, 0.8, 2, 0.012, 90], [10, 22, 0.28, 3, 0.03, 16]].forEach(([s0, s1, a, speed, sway, base], L) => {
+        const n = cycles(speed, o.speed);
+        take(LAYERS.snow[L], base, o.amt).forEach((p) => {
+          const prog = (p.y + ph * n) % 1, y = prog * (H + 60) - 30;
+          const x = (((p.x + wind * prog * H / W + Math.sin(TAU * (ph * (L + 1) + p.p)) * sway) % 1) + 1) % 1 * W;
+          const s = (s0 + p.s * (s1 - s0)) * u * (o.size / 100);
+          c.globalAlpha = a * (0.6 + p.k * 0.4) * o.op / 100; c.drawImage(sp, x - s, y - s, s * 2, s * 2);
+        });
+      });
+    }
+    if (F.dust.on) {
+      const o = F.dust, sp = spriteOf(o.color), n = cycles(1, o.speed), wind = Math.tan(o.dir * Math.PI / 180);
+      c.globalCompositeOperation = 'lighter';
+      take(LAYERS.dust[0], 70, o.amt).forEach((p) => {
+        const prog = (((p.y - ph * n) % 1) + 1) % 1, y = prog * H;
+        const x = (((p.x + wind * (1 - prog) * H / W + Math.sin(TAU * (ph + p.p)) * 0.02) % 1) + 1) % 1 * W, s = (2 + p.s * 9) * u * (o.size / 100);
+        c.globalAlpha = (0.12 + 0.4 * p.k) * (0.6 + 0.4 * Math.sin(TAU * (ph * 2 + p.p))) * o.op / 100;
+        c.drawImage(sp, x - s, y - s, s * 2, s * 2);
+      });
+      c.globalCompositeOperation = 'source-over';
+    }
+    if (F.rays.on) {
+      const o = F.rays, beams = Math.max(2, Math.round(6 * o.amt / 100)), rot = o.dir * Math.PI / 180, n = cycles(1, o.speed);
+      c.globalCompositeOperation = 'screen';
+      const ox = W * 0.12, oy = -H * 0.15, len = Math.hypot(W, H) * 1.1;
+      const rgb = o.color.match(/\w\w/g).map((h) => parseInt(h, 16)).join(',');
+      for (let i = 0; i < beams; i++) {
+        const ang = rot + 0.35 + i * (0.72 / beams) + Math.sin(TAU * ph * n + i) * 0.015, wdt = (0.035 + (i % 3) * 0.02) * (o.size / 100);
+        const g = c.createLinearGradient(ox, oy, ox + Math.cos(ang) * len, oy + Math.sin(ang) * len);
+        g.addColorStop(0, `rgba(${rgb},.32)`); g.addColorStop(1, `rgba(${rgb},0)`);
+        c.globalAlpha = (0.5 + 0.5 * Math.sin(TAU * (ph * n + i / beams))) * o.op / 100;
+        c.fillStyle = g; c.beginPath(); c.moveTo(ox, oy);
+        c.lineTo(ox + Math.cos(ang - wdt) * len, oy + Math.sin(ang - wdt) * len);
+        c.lineTo(ox + Math.cos(ang + wdt) * len, oy + Math.sin(ang + wdt) * len); c.closePath(); c.fill();
+      }
+      c.globalCompositeOperation = 'source-over';
+    }
+    if (F.stars.on) {
+      const o = F.stars, sp = spriteOf(o.color), n = cycles(1, o.speed);
+      c.globalCompositeOperation = 'lighter';
+      take(LAYERS.stars[0], 160, o.amt).forEach((p) => {
+        const tw = 0.5 + 0.5 * Math.sin(TAU * (ph * n * (1 + Math.floor(p.s * 3)) + p.p)), s = (0.8 + p.k * 2.2) * u * (0.7 + tw * 0.6) * (o.size / 100);
+        c.globalAlpha = (0.25 + 0.75 * tw) * o.op / 100; c.drawImage(sp, p.x * W - s * 2, p.y * H * 0.7 - s * 2, s * 4, s * 4);
+      });
+    }
     c.restore();
   }
 
@@ -155,10 +251,16 @@
     if (S.blur) f.push(`blur(${(S.blur * Math.min(W, H)) / 1080}px)`);
     if (S.bright !== 100) f.push(`brightness(${S.bright}%)`);
     if (S.sat !== 100) f.push(`saturate(${S.sat}%)`);
+    if (S.contrast !== 100) f.push(`contrast(${S.contrast}%)`);
+    if (S.hue) f.push(`hue-rotate(${S.hue}deg)`);
     c.filter = f.length ? f.join(' ') : 'none';
     if (S.blur) { const p = S.blur * 2 * Math.min(W, H) / 1080; c.translate(-p, -p); c.scale((W + 2 * p) / W, (H + 2 * p) / H); }   // no faded edges
     drawBackground(c, W, H, t);
     c.restore();
+    if (S.temp) {        // colour temperature: warm (orange) or cool (blue) light over the picture
+      c.save(); c.globalCompositeOperation = 'soft-light'; c.globalAlpha = Math.abs(S.temp) / 100;
+      c.fillStyle = S.temp > 0 ? '#ff8a1e' : '#1e78ff'; c.fillRect(0, 0, W, H); c.restore();
+    }
     if (S.dark) { c.fillStyle = `rgba(0,0,0,${S.dark / 100})`; c.fillRect(0, 0, W, H); }
     drawParticles(c, W, H, t);
     if (S.vignette) {
@@ -188,13 +290,29 @@
     cv.width = Math.round(W * k * pr); cv.height = Math.round(H * k * pr);
     draw();
   }
-  function draw() { if (cv) render(ctx, cv.width, cv.height, ((performance.now() - t0) / 1000) * S.speed % LOOP); }
-  function loop() { draw(); raf = S.motion !== 'none' && !box.hidden ? requestAnimationFrame(loop) : 0; }
+  function draw() { if (cv) render(ctx, cv.width, cv.height, ((performance.now() - t0) / 1000) % S.loop); }
+  function loop() { draw(); raf = animated() && !box.hidden ? requestAnimationFrame(loop) : 0; }
   function changed() { if (!raf) loop(); }
 
   // ---------- UI ----------
   const chips = (name, list, cur) => list.map(([k, n]) => `<button type="button" class="chip${k === cur ? ' is-active' : ''}" data-${name}="${k}">${n}</button>`).join('');
   const range = (k, label, min, max, step = 1) => `<label class="mk__range"><span>${label}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${S[k]}"></label>`;
+  // one atmosphere layer: on/off switch, and when on, all its settings
+  const fxRange = (k, p, label, min, max, step = 1) => `<label class="mk__range"><span>${label}</span><input type="range" data-fx="${k}" data-p="${p}" min="${min}" max="${max}" step="${step}" value="${S.fx[k][p]}"></label>`;
+  function fxRow(k, name) {
+    const o = S.fx[k];
+    return `<div class="fxrow${o.on ? ' is-on' : ''}">
+      <label class="fxrow__head"><span>${name}</span><input type="checkbox" class="mk__switch" data-fxon="${k}" ${o.on ? 'checked' : ''}></label>
+      ${o.on ? `<div class="fxrow__body">
+        ${fxRange(k, 'amt', k === 'rays' ? 'Huzme sayısı' : k === 'fog' ? 'Yoğunluk' : 'Miktar', 10, 300, 5)}
+        ${fxRange(k, 'size', k === 'fog' ? 'Ölçek' : 'Boyut', 30, 300, 5)}
+        ${fxRange(k, 'speed', 'Hız', 0.5, 4, 0.5)}
+        ${fxRange(k, 'dir', k === 'rays' ? 'Açı' : 'Rüzgâr / yön', -45, 45, 1)}
+        ${fxRange(k, 'op', 'Görünürlük', 5, 100, 1)}
+        <div class="mk__row"><span class="mk__lbl">Renk</span><input type="color" data-fx="${k}" data-p="color" value="${o.color}" aria-label="${name} rengi"><button type="button" class="btn btn--sm" data-fxreset="${k}">Varsayılana dön</button></div>
+      </div>` : ''}
+    </div>`;
+  }
   function panel() {
     const helper = window.CryWall && window.CryWall.helperBase && window.CryWall.helperBase() !== null;
     return `
@@ -223,6 +341,7 @@
       </section>
       <section><h4>Efektler</h4>
         ${range('blur', 'Bulanıklık', 0, 40)}${range('bright', 'Parlaklık', 40, 160)}${range('sat', 'Canlılık', 0, 200)}
+        ${range('contrast', 'Kontrast', 50, 160)}${range('temp', 'Sıcaklık', -100, 100)}${range('hue', 'Renk tonu', -180, 180)}
         ${range('dark', 'Karartma', 0, 80)}${range('vignette', 'Kenar gölgesi', 0, 90)}${range('grain', 'Film greni', 0, 100)}
       </section>
       <section><h4>Yazı</h4>
@@ -233,9 +352,17 @@
         <label class="mk__check"><input type="checkbox" data-k="bold" ${S.bold ? 'checked' : ''}> Kalın</label>
         <p class="mk__hint">Yazıyı önizlemede sürükleyerek taşı.</p>
       </section>
-      <section><h4>Hareket</h4><div class="mk__chips mk__chips--sm">${chips('motion', MOTIONS, S.motion)}</div>
-        ${range('speed', 'Hız', 0.5, 2, 0.1)}
-        <p class="mk__hint">Hareket seçersen duvar kağıdın ${LOOP} saniyelik, sonsuz dönen bir video olur.</p>
+      <section><h4>Kamera hareketi</h4><div class="mk__chips mk__chips--sm">${chips('motion', MOTIONS, S.motion)}</div>
+        ${S.motion !== 'none' ? range('camAmt', 'Güç', 1, 25) + range('camSpeed', 'Hız', 1, 4, 1) : ''}
+      </section>
+      <section><h4>Atmosfer efektleri <small>(birden fazlasını aç)</small></h4>
+        ${FXS.map(([k, n]) => fxRow(k, n)).join('')}
+      </section>
+      <section><h4>Video</h4>
+        ${range('loop', 'Döngü (sn)', 6, 20, 1)}
+        <div class="mk__row"><span class="mk__lbl">Akıcılık</span><div class="mk__chips mk__chips--sm">${chips('fps', [[24, '24 fps'], [30, '30 fps'], [60, '60 fps']], S.fps)}</div></div>
+        <div class="mk__row"><span class="mk__lbl">Kalite</span><div class="mk__chips mk__chips--sm">${chips('q', [['normal', 'Normal'], ['high', 'Yüksek'], ['max', 'En yüksek']], S.q)}</div></div>
+        <p class="mk__hint">Kamera hareketi ya da efekt açınca duvar kağıdın ${S.loop} saniyelik, dikişsiz dönen bir video olur.</p>
       </section>
       <section class="mk__out">
         <button type="button" class="btn btn--primary" data-act="png">⬇ Resim olarak indir</button>
@@ -246,7 +373,7 @@
   }
   function syncShow() {
     box.querySelectorAll('[data-show]').forEach((n) => { n.hidden = !n.dataset.show.split(' ').includes(S.bg); });
-    box.querySelectorAll('[data-act="video"], [data-act="applylive"]').forEach((b) => (b.disabled = S.motion === 'none'));
+    box.querySelectorAll('[data-act="video"], [data-act="applylive"]').forEach((b) => (b.disabled = !animated()));
   }
   // filled part of each slider (CSS reads --p)
   const fillRange = (r) => r.style.setProperty('--p', ((r.value - r.min) / (r.max - r.min)) * 100 + '%');
@@ -280,7 +407,10 @@
       if (d.pal) { S.colors = PALETTES[+d.pal].slice(); rerender(); draw(); return; }
       if (d.style !== undefined) { S.style = d.style; p.querySelectorAll('[data-style]').forEach((x) => x.classList.toggle('is-active', x === b)); return; }
       if (d.font) { S.font = d.font; p.querySelectorAll('[data-font]').forEach((x) => x.classList.toggle('is-active', x === b)); draw(); return; }
-      if (d.motion) { S.motion = d.motion; p.querySelectorAll('[data-motion]').forEach((x) => x.classList.toggle('is-active', x === b)); syncShow(); t0 = performance.now(); changed(); draw(); return; }
+      if (d.motion) { S.motion = d.motion; rerender(); t0 = performance.now(); changed(); draw(); return; }
+      if (d.fps) { S.fps = +d.fps; rerender(); return; }
+      if (d.q) { S.q = d.q; rerender(); return; }
+      if (d.fxreset) { S.fx[d.fxreset] = { ...FX_DEFAULT[d.fxreset], on: true }; rerender(); draw(); return; }
       if (d.act === 'random') { const r = () => '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'); S.colors = [r(), r(), '#' + Math.floor(Math.random() * 0x202020).toString(16).padStart(6, '0')]; S.angle = Math.floor(Math.random() * 360); rerender(); draw(); }
       else if (d.act === 'reseed') { S.seed = Math.floor(Math.random() * 1e6); draw(); }
       else if (d.act === 'ai') genAI();
@@ -294,6 +424,10 @@
       if (el.dataset.color) { S.colors[+el.dataset.color] = el.value; draw(); return; }
       if (el.id === 'mkPrompt') { S.prompt = el.value; return; }
       if (el.type === 'range') fillRange(el);
+      if (el.dataset.fx) {         // an atmosphere layer setting
+        const o = S.fx[el.dataset.fx]; o[el.dataset.p] = el.type === 'color' ? el.value : +el.value; draw(); return;
+      }
+      if (el.dataset.fxon) { S.fx[el.dataset.fxon].on = el.checked; rerender(); t0 = performance.now(); changed(); draw(); return; }
       const k = el.dataset.k; if (!k) return;
       S[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.value;
       if (k === 'imgZoom') p.querySelectorAll('[data-k="imgZoom"]').forEach((x) => (x.value = el.value));
@@ -439,7 +573,7 @@
     return types.find((x) => window.MediaRecorder && MediaRecorder.isTypeSupported(x)) || '';
   }
   async function exportVideo(mode) {
-    if (S.motion === 'none') return status('Önce bir hareket seç.');
+    if (!animated()) return status('Önce bir kamera hareketi ya da efekt aç.');
     const type = pickType();
     if (!type) return status('Bu tarayıcı video kaydedemiyor. Chrome ya da Edge ile dene.');
     if (mode === 'apply' && !type.startsWith('video/mp4')) return status('Masaüstüne hareketli uygulamak için MP4 gerekir; Edge ya da Chrome ile dene.');
@@ -447,18 +581,18 @@
     const c = document.createElement('canvas'); c.width = Math.round(W0 * k / 2) * 2; c.height = Math.round(H0 * k / 2) * 2;
     const g = c.getContext('2d');
     try { render(g, c.width, c.height, 0); } catch { return status('Bu görsel dışa aktarılamıyor.'); }
-    const stream = c.captureStream(30);
-    const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 12e6 });
+    const stream = c.captureStream(S.fps);
+    const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: { normal: 6e6, high: 14e6, max: 28e6 }[S.q] || 14e6 });
     const parts = []; rec.ondataavailable = (e) => e.data.size && parts.push(e.data);
     const btns = box.querySelectorAll('.mk__out button'); btns.forEach((b) => (b.disabled = true));
-    const dur = LOOP / S.speed;
+    const dur = S.loop;
     const stopped = new Promise((r) => (rec.onstop = r));
     rec.start(500);
     const start = performance.now();
     await new Promise((res) => {
       const step = () => {
         const el = (performance.now() - start) / 1000;
-        render(g, c.width, c.height, Math.min(el, dur) * S.speed % LOOP);
+        render(g, c.width, c.height, Math.min(el, dur) % S.loop);
         status(`Video hazırlanıyor… %${Math.min(99, Math.round((el / dur) * 100))} (sekmeyi kapatma)`);
         if (el >= dur) return res();
         requestAnimationFrame(step);

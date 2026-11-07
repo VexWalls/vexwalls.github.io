@@ -36,8 +36,11 @@ $Cats = @(
     @{ key = 'fantastik'; q = '+"fantasy art"'; c = '100' }, @{ key = 'dijital'; q = '+"digital art"'; c = '100' }, @{ key = 'araba'; q = '+cars'; c = '100' },
     @{ key = 'sehir'; q = '+city'; c = '100' }, @{ key = 'hayvan'; q = '+animals'; c = '100' }, @{ key = 'minimal'; q = '+minimalism'; c = '100' },
     @{ key = 'soyut'; q = '+abstract'; c = '100' }, @{ key = 'karanlik'; q = '+dark'; c = '100' },
+    # games / films / series / cartoons / heroes / anime: every character (copyright filter is off)
+    @{ key = 'oyun'; q = '+"video games"'; c = '110' }, @{ key = 'film'; q = '+movies'; c = '110' }, @{ key = 'dizi'; q = '+"TV series"'; c = '110' },
+    @{ key = 'cizgi'; q = '+cartoon'; c = '110' }, @{ key = 'kahraman'; q = '+superheroes'; c = '110' }, @{ key = 'animedunya'; q = '+anime'; c = '010' },
     # villains: several searches merged (original art only, see $VillainBan)
-    @{ key = 'kotu'; c = '100'; qs = @('+"Grim Reaper"', '+demon +"fantasy art"', '+"dark fantasy" +creature', '+skull +"dark fantasy"',
+    @{ key = 'kotu'; c = '110'; qs = @('+Joker', '+villains', '+"Grim Reaper"', '+demon +"fantasy art"', '+"dark fantasy" +creature', '+skull +"dark fantasy"',
         '+mask +"fantasy art"', '+jester +"digital art"', '+reaper') }
 )
 # Villain searches must never show franchise villains (Joker, League of Legends, horror films…)
@@ -45,6 +48,7 @@ $VillainBan = ' -Joker -"The Joker" -Batman -"Harley Quinn" -"DC Comics" -"Leagu
     ' -Arkham -"Heath Ledger" -"Joaquin Phoenix" -"Jared Leto" -Terrifier -"Art the Clown" -"The Amazing Digital Circus" -"Glitch Productions"' +
     ' -"In Flames" -Dodge -"Dodge Challenger" -cars -clownfish -fish -"Dark Souls" -"Elden Ring" -Diablo -"Doom (game)" -"Devil May Cry" -"Demon Slayer"' +
     ' -"Kimetsu no Yaiba" -"Jujutsu Kaisen" -"Chainsaw Man" -Bleach -"Death Note" -"Ghost of Tsushima" -"Sekiro" -"Hollow Knight" -Overwatch -Warhammer'
+if (-not $CopyrightFilter) { $VillainBan = ' -clownfish -fish -Dodge -cars' }   # filter off: Joker & co. welcome, only keep the wrong-meaning hits out
 $AnimeExtra = ' -"Makoto Shinkai" -"Studio Ghibli" -"Kimi no Na Wa" -"Genshin Impact" -"Honkai: Star Rail" -"Hatsune Miku"'
 
 function Get-Wallhaven($cat, [string]$ratios, [int]$page, [string]$range, [string]$atleast = '1920x1080') {
@@ -162,7 +166,7 @@ Get-ChildItem $ThumbDir -Filter *.jpg -ErrorAction SilentlyContinue | Where-Obje
 Write-Host "phone thumbnails: $($keepThumbs.Count) ($newThumbs new)$(if (-not $Ffmpeg) { ' — ffmpeg not found, skipped' })"
 
 # Live wallpapers (same list as LIVE_CATS in public/app.js)
-$Live = @('mb:anime-nature', 'mb:japan', 'mb:samurai', 'mb:fantasy', 'mb:knight', 'mb:cyberpunk', 'mb:dark',
+$Live = @('mb:games', 'mb:anime', 'mb:league-of-legends', 'mb:joker', 'mb:superhero', 'mb:marvel', 'mb:genshin-impact', 'mb:cartoon', 'mb:anime-nature', 'mb:japan', 'mb:samurai', 'mb:fantasy', 'mb:knight', 'mb:cyberpunk', 'mb:dark',
     'mb:space', 'mb:rain', 'mb:night', 'mb:sunset', 'mb:forest', 'mb:winter', 'mb:mountain', 'mb:autumn-leaves', 'mb:water',
     'mb:car', 'mb:sports-cars', 'mb:animal', 'mb:cat', 'mx:nature', 'mx:galaxy', 'mx:sea', 'mx:forest', 'mx:city', 'mx:neon', 'mx:fire')
 $liveTotal = 0
