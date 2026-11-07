@@ -184,3 +184,6 @@
   .aifab { right: 14px; bottom: 76px; width: 46px; height: 46px; }
   .aipop { right: 8px; left: 8px; width: auto; max-width: none; bottom: 132px; height: min(480px, calc(100vh - 160px)); }
 }
+/* the big picture view must sit above the AI chat box */
+.ailb { z-index: 300 !important; }
+body:has(.ailb:not([hidden])) .aipop { display: none !important; }
