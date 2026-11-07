@@ -1,6 +1,6 @@
-/* VexWalls — AI wallpapers on the home page (like ChatGPT / Adobe Firefly).
- * Write what you want → the AI "thinks" → 3 different pictures are shown side by side.
- * Each one: view big, download, set as desktop (PC helper), profile picture, make it animated.
+/* VexWalls — AI assistant: a small round button in the bottom-right corner (above "back to top").
+ * Click → a small chat box opens; write anything → the AI draws 3 pictures right in the box.
+ * Click a picture to see it big: download, set as desktop (PC helper), profile picture, animate.
  * Pictures come from our Cloudflare Worker (worker/ai.js, free Workers AI). */
 (function () {
   const AI_URL = 'https://vexwalls-ai.yigithantalhas.workers.dev/';
@@ -8,16 +8,15 @@
   // anything the visitor imagines — except adult (+18) content and gore
   // (letter-aware word edges, so Turkish words like "çıplak" match too)
   const BLOCK = /(?<!\p{L})(nude|nudes|nudity|naked|nsfw|sex|sexy|sexual|porn|porno|hentai|erotic|erotica|lingerie|topless|bottomless|nipples?|genitals?|penis|vagina|boobs|breasts?|bdsm|fetish|onlyfans|strip ?tease|gore|gory|dismember\p{L}*|decapitat\p{L}*|beheaded|mutilat\p{L}*|disembowel\p{L}*|çıplak|ciplak|seks|seksi|sevişme|sevisme|erotik|müstehcen|mustehcen|iç ?çamaşırı|ic ?camasiri|göğüs|gogus|vahşet|vahset|kesik baş|kesik bas|parçalanmış|parcalanmis)(?!\p{L})/iu;
-  const STEPS = ['İsteğini anlıyor…', 'İngilizceye çeviriyor…', 'Sahneyi ve ışığı kuruyor…', 'Çiziyor…', 'Son rötuşlar…'];
-  // the 3 pictures differ on purpose (otherwise they can look alike)
+  const STEPS = ['Düşünüyor…', 'Anlıyor…', 'Çiziyor…', 'Son rötuşlar…'];
   const VARIANTS = ['', ', different composition, wide view', ', alternative color palette, close-up details'];
   const $ = (s, r = document) => r.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let style = '', busy = false, batchNo = 0;
-
   const portrait = () => innerHeight > innerWidth * 1.1;
   const helper = () => window.CryWall && window.CryWall.helperBase && window.CryWall.helperBase() !== null;
-  const toast = (a, b, t) => window.CryWall && window.CryWall.toast ? window.CryWall.toast(a, b, t) : null;
+  const toast = (a, b, t) => (window.CryWall && window.CryWall.toast ? window.CryWall.toast(a, b, t) : null);
+  const ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l1.9 4.6 4.6 1.9-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.9L12 2.5Zm6.5 11 .95 2.05 2.05.95-2.05.95-.95 2.05-.95-2.05-2.05-.95 2.05-.95.95-2.05ZM6 15l.75 1.75L8.5 17.5l-1.75.75L6 20l-.75-1.75L3.5 17.5l1.75-.75L6 15Z"/></svg>';
+  let fab, pop, list, ta, go, lb = null, busy = false;
 
   // ---------- one picture ----------
   async function draw(prompt, variant) {
@@ -25,7 +24,7 @@
     try {
       const r = await fetch(AI_URL, {
         method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, style: style + variant, width: portrait() ? 1080 : 1920, height: portrait() ? 1920 : 1080 }),
+        body: JSON.stringify({ prompt, style: variant, width: portrait() ? 1080 : 1920, height: portrait() ? 1920 : 1080 }),
       });
       if (!r.ok || !/^image\//.test(r.headers.get('content-type') || '')) {
         const j = await r.json().catch(() => ({}));
@@ -35,86 +34,56 @@
     } finally { clearTimeout(timer); }
   }
 
-  // ---------- a batch of 3 ----------
-  function card(i) {
-    const c = document.createElement('div');
-    c.className = 'aicard is-thinking';
-    c.innerHTML = `
-      <div class="aicard__think"><div class="aicard__orb"><i></i><i></i><i></i></div><b>${STEPS[0]}</b><div class="aicard__bar"><i></i></div></div>
-      <img alt="Yapay zeka duvar kağıdı ${i + 1}">
-      <div class="aicard__acts">
-        <button type="button" data-a="view" title="Büyüt">⤢</button>
-        <button type="button" data-a="dl">⬇ İndir</button>
-        ${helper() ? '<button type="button" data-a="apply">🖥 Uygula</button>' : ''}
-        <button type="button" data-a="pfp">👤 Profil</button>
-        <button type="button" data-a="live">🎬 Hareketli</button>
-      </div>`;
+  function card() {
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'aithumb is-thinking';
+    c.innerHTML = '<span class="aithumb__spin"></span><img alt="">';
     return c;
-  }
-  function thinking(c) {
-    const start = performance.now(), b = $('.aicard__think b', c), bar = $('.aicard__bar i', c);
-    const off = Math.random() * 0.8;
-    const t = setInterval(() => {
-      const s = (performance.now() - start) / 1000 + off;
-      b.textContent = STEPS[Math.min(STEPS.length - 1, Math.floor(s / 2.3))];
-      bar.style.width = (95 * (1 - Math.exp(-s / 6))).toFixed(1) + '%';
-    }, 200);
-    return () => clearInterval(t);
   }
 
   async function generate(prompt) {
     if (busy) return;
-    const res = $('#aiResults');
-    busy = true; $('#aiHomeForm .aihome__go').disabled = true;
-    batchNo++;
-    const batch = document.createElement('div');
-    batch.className = 'aibatch';
-    batch.innerHTML = `<div class="aibatch__head"><span class="aibatch__you">Sen</span><p>${esc(prompt)}</p>
-      <button type="button" class="btn btn--sm" data-again>↻ 3 yeni tane daha</button></div><div class="aibatch__grid"></div>`;
-    res.prepend(batch);
-    res.hidden = false;
-    const grid = $('.aibatch__grid', batch);
-    grid.classList.toggle('is-tall', portrait());
-    $('[data-again]', batch).onclick = () => generate(prompt);
-    const cards = Array.from({ length: COUNT }, (_, i) => card(i));
+    busy = true; go.disabled = true;
+    const msg = document.createElement('div');
+    msg.className = 'aimsg';
+    msg.innerHTML = `<p class="aimsg__you">${esc(prompt)}</p><div class="aimsg__ai"><small>${STEPS[0]}</small><div class="aimsg__grid${portrait() ? ' is-tall' : ''}"></div></div>`;
+    list.append(msg);
+    list.scrollTop = list.scrollHeight;
+    const grid = $('.aimsg__grid', msg), state = $('small', msg);
+    const cards = Array.from({ length: COUNT }, () => card());
     cards.forEach((c) => grid.append(c));
-    if (batchNo === 1 || res.getBoundingClientRect().top > innerHeight * 0.6) {
-      const top = res.getBoundingClientRect().top + scrollY - 90;
-      (window.cwScrollTo ? window.cwScrollTo(top) : scrollTo(0, top));
-    }
-    let quota = false, blocked = false, okCount = 0;
+    const t0 = performance.now();
+    const tick = setInterval(() => { state.textContent = STEPS[Math.min(STEPS.length - 1, Math.floor((performance.now() - t0) / 2600))]; }, 300);
+    let quota = false, blocked = false, ok = 0;
     await Promise.all(cards.map(async (c, i) => {
-      const stop = thinking(c);
-      await new Promise((r) => setTimeout(r, i * 350));        // don't hit the service all at the same millisecond
+      await new Promise((r) => setTimeout(r, i * 350));
       try {
         const blob = await draw(prompt, VARIANTS[i]);
-        const url = URL.createObjectURL(blob);
-        const img = $('img', c);
-        await new Promise((ok, bad) => { img.onload = ok; img.onerror = bad; img.src = url; });
+        const url = URL.createObjectURL(blob), img = $('img', c);
+        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
         c.dataset.url = url; c.dataset.type = blob.type;
-        c.classList.remove('is-thinking'); c.classList.add('is-ready');
-        okCount++;
+        c.classList.remove('is-thinking'); c.classList.add('is-ready'); ok++;
+        list.scrollTop = list.scrollHeight;
       } catch (e) {
         if (/quota/.test(e.message)) quota = true;
         if (/blocked/.test(e.message)) blocked = true;
-        c.classList.remove('is-thinking'); c.classList.add('is-failed'); c.dataset.err = e.message;
-        $('.aicard__think', c).innerHTML = '<b>Bu çizilemedi</b><small>Tekrar dene</small>';
-      } finally { stop(); }
+        c.remove();
+      }
     }));
-    busy = false; $('#aiHomeForm .aihome__go').disabled = false;
-    // nothing drawn: no empty cards left on the page, just a short message
-    batch.querySelectorAll('.aicard.is-failed').forEach((c) => c.remove());
-    if (!okCount) { batch.remove(); if (!res.children.length) res.hidden = true; }
-    if (blocked) toast('Bu isteğe izin verilmiyor', 'Başka bir şey dene.', 'err');
-    else if (quota) toast('Bugünkü ücretsiz yapay zeka hakkı doldu', 'Yarın tekrar dene.', 'err');
-    else if (!okCount) toast('Yapay zeka şu an cevap vermedi', 'Biraz sonra tekrar dene.', 'err');
+    clearInterval(tick);
+    busy = false; go.disabled = false;
+    if (ok) state.textContent = 'Beğendiğine tıkla: büyüt, indir, uygula.';
+    else {
+      state.textContent = blocked ? 'Bu isteğe izin verilmiyor.' : quota ? 'Bugünkü ücretsiz hak doldu, yarın tekrar dene.' : 'Şu an çizilemedi, biraz sonra tekrar dene.';
+      state.classList.add('is-bad');
+    }
+    list.scrollTop = list.scrollHeight;
   }
 
-  // ---------- actions ----------
+  // ---------- actions on a picture ----------
   const fileName = (c) => `vexwalls-yapay-zeka-${Date.now() % 100000}.${/png/.test(c.dataset.type) ? 'png' : 'jpg'}`;
   async function act(a, c) {
     const url = c.dataset.url; if (!url) return;
-    if (a === 'view') return view(c);
     if (a === 'dl') {
       const blob = await fetch(url).then((r) => r.blob());
       const file = new File([blob], fileName(c), { type: blob.type });
@@ -122,83 +91,91 @@
         try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; }
       }
       const l = document.createElement('a'); l.href = url; l.download = file.name; document.body.append(l); l.click(); l.remove();
-      return toast('İndirildi', 'Duvar kağıdın hazır', 'ok');
+      return toast('İndirildi', '', 'ok');
     }
     if (a === 'apply') {
       const blob = await fetch(url).then((r) => r.blob());
       try {
         const r = await fetch((window.CryWall.helperBase() || '') + '/api/upload/apply?target=desktop', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob });
         const j = await r.json(); if (!j.ok) throw new Error(j.error);
-        toast('Masaüstüne uygulandı', 'Resimler › VexWalls klasörüne de kaydedildi.', 'ok');
+        toast('Masaüstüne uygulandı', '', 'ok');
       } catch (e) { toast('Uygulanamadı', e.message, 'err'); }
       return;
     }
-    if (a === 'pfp') return window.CWPfp && CWPfp.open(url, { id: 'ai' });
-    if (a === 'live') return window.CWMaker && CWMaker.open({ src: url, motion: 'zoom' });
+    if (a === 'pfp') { lb.hidden = true; return window.CWPfp && CWPfp.open(url, { id: 'ai' }); }
+    if (a === 'live') { lb.hidden = true; return window.CWMaker && CWMaker.open({ src: url, motion: 'zoom' }); }
   }
 
-  // big view: arrows walk through the pictures of the same batch
-  let lb = null;
+  // big view (arrows go through the pictures of the same answer)
+  function lbSet(x) { lb.cur = x; $('img', lb).src = x.dataset.url; }
+  function lbStep(d) {
+    const all = [...lb.cur.parentNode.querySelectorAll('.aithumb.is-ready')];
+    const n = all[(all.indexOf(lb.cur) + d + all.length) % all.length]; if (n) lbSet(n);
+  }
   function view(c) {
     if (!lb) {
       lb = document.createElement('div');
       lb.className = 'ailb'; lb.hidden = true;
       lb.innerHTML = `<div class="ailb__bg" data-x></div><img alt=""><button class="ailb__x" data-x aria-label="Kapat">✕</button>
         <button class="ailb__nav ailb__nav--p" data-step="-1" aria-label="Önceki">‹</button><button class="ailb__nav ailb__nav--n" data-step="1" aria-label="Sonraki">›</button>
-        <div class="ailb__acts"></div>`;
+        <div class="ailb__acts">
+          <button type="button" data-a="dl">İndir</button>
+          ${helper() ? '<button type="button" data-a="apply">Masaüstüne uygula</button>' : ''}
+          <button type="button" data-a="pfp">Profil resmi yap</button>
+          <button type="button" data-a="live">Hareketli yap</button>
+        </div>`;
       document.body.append(lb);
       lb.addEventListener('click', (e) => {
         if (e.target.closest('[data-x]')) return (lb.hidden = true);
-        const s = e.target.closest('[data-step]'); if (s) return show(+s.dataset.step);
+        const s = e.target.closest('[data-step]'); if (s) return lbStep(+s.dataset.step);
         const b = e.target.closest('[data-a]'); if (b) act(b.dataset.a, lb.cur);
       });
       document.addEventListener('keydown', (e) => {
         if (lb.hidden) return;
-        if (e.key === 'Escape') lb.hidden = true; else if (e.key === 'ArrowLeft') show(-1); else if (e.key === 'ArrowRight') show(1);
-      });
+        if (e.key === 'Escape') { e.stopImmediatePropagation(); lb.hidden = true; } else if (e.key === 'ArrowLeft') lbStep(-1); else if (e.key === 'ArrowRight') lbStep(1);
+      }, true);
     }
-    const show = (d) => {
-      const list = [...lb.cur.parentNode.querySelectorAll('.aicard.is-ready')];
-      const n = list[(list.indexOf(lb.cur) + d + list.length) % list.length]; if (n) set(n);
-    };
-    const set = (card) => {
-      lb.cur = card; $('img', lb).src = card.dataset.url;
-      $('.ailb__acts', lb).innerHTML = $('.aicard__acts', card).innerHTML.replace('<button type="button" data-a="view" title="Büyüt">⤢</button>', '');
-    };
-    set(c); lb.hidden = false;
+    lbSet(c); lb.hidden = false;
   }
 
-  // ---------- form ----------
-  function bind() {
-    const form = document.getElementById('aiHomeForm'); if (!form) return;
-    const ta = document.getElementById('aiHomePrompt');
-    form.addEventListener('click', (e) => {
-      const s = e.target.closest('[data-aistyle]');
-      if (s) { style = s.dataset.aistyle; form.querySelectorAll('[data-aistyle]').forEach((x) => x.classList.toggle('is-active', x === s)); return; }
-      const ex = e.target.closest('[data-aiex]');
-      if (ex) { ta.value = ex.dataset.aiex; ta.focus(); return; }
-      if (e.target.closest('[data-design]')) window.CWMaker && CWMaker.open();
-    });
-    form.addEventListener('submit', (e) => {
+  // ---------- the corner button + chat box ----------
+  function build() {
+    fab = document.createElement('button');
+    fab.className = 'aifab'; fab.type = 'button'; fab.title = 'Yapay zekayla duvar kağıdı yap'; fab.setAttribute('aria-label', 'Yapay zeka');
+    fab.innerHTML = ICON;
+    pop = document.createElement('div');
+    pop.className = 'aipop'; pop.hidden = true;
+    pop.innerHTML = `
+      <div class="aipop__head"><b>${ICON}Yapay zeka</b><button type="button" class="aipop__x" aria-label="Kapat">✕</button></div>
+      <div class="aipop__list"><p class="aipop__hi">Ne istersen yaz, senin için 3 duvar kağıdı çizeyim.</p></div>
+      <form class="aipop__form" autocomplete="off">
+        <textarea rows="2" maxlength="300" placeholder="Hayal et ve yaz…"></textarea>
+        <button class="btn btn--primary" type="submit">Oluştur</button>
+      </form>`;
+    document.body.append(fab, pop);
+    list = $('.aipop__list', pop); ta = $('textarea', pop); go = $('button[type=submit]', pop);
+    fab.onclick = () => toggle();
+    $('.aipop__x', pop).onclick = () => toggle(false);
+    $('form', pop).addEventListener('submit', (e) => {
       e.preventDefault();
       const text = ta.value.trim();
-      if (!text) { ta.focus(); ta.classList.add('is-shake'); setTimeout(() => ta.classList.remove('is-shake'), 500); return; }
-      if (BLOCK.test(text)) return toast('Bu isteğe izin verilmiyor', 'Başka bir şey dene.', 'err');
+      if (!text) { ta.focus(); return; }
+      ta.value = '';
+      if (BLOCK.test(text)) {
+        const m = document.createElement('div'); m.className = 'aimsg';
+        m.innerHTML = `<p class="aimsg__you">${esc(text)}</p><div class="aimsg__ai"><small class="is-bad">Bu isteğe izin verilmiyor.</small></div>`;
+        list.append(m); list.scrollTop = list.scrollHeight; return;
+      }
       generate(text);
     });
-    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
-    document.getElementById('aiResults').addEventListener('click', (e) => {
-      const b = e.target.closest('[data-a]'); const c = e.target.closest('.aicard');
-      if (b && c) return act(b.dataset.a, c);
-      if (c && c.classList.contains('is-ready') && !e.target.closest('button')) view(c);
-    });
-    document.querySelectorAll('[data-aiscroll]').forEach((b) => b.addEventListener('click', focus));
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('form', pop).requestSubmit(); } });
+    list.addEventListener('click', (e) => { const c = e.target.closest('.aithumb.is-ready'); if (c) view(c); });
+    document.addEventListener('keydown', (e) => { if (!pop.hidden && e.key === 'Escape' && (!lb || lb.hidden)) toggle(false); });
   }
-  function focus() {
-    const top = document.getElementById('aiHome').getBoundingClientRect().top + scrollY - 90;
-    (window.cwScrollTo ? window.cwScrollTo(top) : scrollTo(0, top));
-    setTimeout(() => document.getElementById('aiHomePrompt').focus({ preventScroll: true }), 600);
+  function toggle(on = pop.hidden) {
+    pop.hidden = !on; fab.classList.toggle('is-open', on);
+    if (on) setTimeout(() => ta.focus(), 50);
   }
-  window.CWAI = { focus, generate };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+  window.CWAI = { focus: () => toggle(true), generate };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
 })();

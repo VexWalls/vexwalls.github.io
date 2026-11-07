@@ -102,3 +102,6 @@ body:has(.ailb:not([hidden])) .totop, body:has(#mock:not([hidden])) .totop { opa
 .speedpick input::-moz-range-progress { height: 6px; border-radius: 99px; background: var(--accent); }
 .speedpick input::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--accent); }
 .speedpick b { min-width: 46px; text-align: right; font-size: 13px; }
+body:has(#viewer:not([hidden])) .aifab, body:has(.pfp:not([hidden])) .aifab, body:has(.mk:not([hidden])) .aifab,
+body:has(.ailb:not([hidden])) .aifab, body:has(#mock:not([hidden])) .aifab,
+body:has(#viewer:not([hidden])) .aipop, body:has(.pfp:not([hidden])) .aipop, body:has(.mk:not([hidden])) .aipop { display: none !important; }

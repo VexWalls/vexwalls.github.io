@@ -104,7 +104,6 @@
     </form>
     <div class="hero2__quick"><span>Popüler</span>
       <button data-quickcat="dag">Dağ</button><button data-quickcat="deniz">Deniz</button><button data-quickcat="uzay">Uzay</button><button data-quickcat="orman">Orman</button><button data-quickcat="samuray">Samuray</button><button data-quickcat="minimal">Minimal</button>
-      <button class="hero2__ai" data-aiscroll type="button">Yapay zekayla yap</button>
     </div>
   </div>
   <button class="hero__credit hero2__now" id="heroCredit" hidden><small>Şu an</small> <span></span> ›</button>
@@ -124,23 +123,6 @@
   <div class="hero__progress"><i></i></div>
 </section>
 
-<!-- AI wallpapers right on the home page: write anything → 3 pictures to choose from (ai.js) -->
-<section class="aihome" id="aiHome">
-  <div class="aihome__in">
-    <div class="aihome__text">
-      <p class="aihome__tag">✨ Yeni · Yapay zeka</p>
-      <h2>Hayal et,<br><em>duvar kağıdın olsun.</em></h2>
-      <p>Aklına ne gelirse yaz; yapay zeka senin için <b>3 farklı</b> duvar kağıdı çizsin, beğendiğini seç. İndir, masaüstüne uygula, profil resmi yap ya da hareketli hale getir. Ücretsiz.</p>
-    </div>
-    <form class="aihome__form" id="aiHomeForm" autocomplete="off">
-      <textarea id="aiHomePrompt" rows="3" maxlength="300" placeholder="Hayal et ve yaz… örn: gece yarısı karlı dağlarda yalnız bir samuray, kırmızı ay"></textarea>
-      <div class="aihome__row">
-        <button class="btn btn--primary aihome__go" type="submit">Oluştur</button>
-      </div>
-    </form>
-  </div>
-  <div class="aires" id="aiResults" hidden></div>
-</section>
 
 <!-- flowing category strips: speed up / reverse with scrolling -->
 <section class="strip" id="strip">
