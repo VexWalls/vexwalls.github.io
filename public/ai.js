@@ -90,6 +90,21 @@
     list.scrollTop = list.scrollHeight;
   }
 
+  // ---------- ChatGPT: the request is written here, the picture is drawn there ----------
+  function gptPrompt(text) {
+    const tall = portrait();
+    return `Bana şu isteğe göre bir ${tall ? 'telefon' : 'masaüstü'} duvar kağıdı resmi çiz: "${text}". ` +
+      `${tall ? 'Dikey 9:16 (1080x1920)' : 'Yatay 16:9 (1920x1080)'}, yüksek çözünürlük, çok detaylı, etkileyici ışık ve renkler. Resmin üzerinde yazı veya filigran olmasın.`;
+  }
+  function openGPT(text) {
+    const url = 'https://chatgpt.com/?q=' + encodeURIComponent(gptPrompt(text));
+    const w = window.open(url, '_blank'); if (w) w.opener = null;
+    const m = document.createElement('div'); m.className = 'aimsg';
+    m.innerHTML = `<p class="aimsg__you">${esc(text)}</p><div class="aimsg__ai"><small>✓ İsteğin hazır. ChatGPT yeni sekmede ${w ? 'açıldı' : 'açılacak'}; resim orada çizilecek, beğenirsen oradan indir.</small>
+      <a class="aimsg__open" href="${url}" target="_blank" rel="noopener">ChatGPT'yi aç ↗</a></div>`;
+    list.append(m); list.scrollTop = list.scrollHeight;
+  }
+
   // ---------- actions on a picture ----------
   const fileName = (c) => `vexwalls-yapay-zeka-${Date.now() % 100000}.${/png/.test(c.dataset.type) ? 'png' : 'jpg'}`;
   async function act(a, c) {
@@ -157,27 +172,33 @@
     pop.className = 'aipop'; pop.hidden = true;
     pop.innerHTML = `
       <div class="aipop__head"><b>${ICON}Yapay zeka</b><button type="button" class="aipop__x" aria-label="Kapat">✕</button></div>
-      <div class="aipop__list"><p class="aipop__hi">Ne istersen yaz, senin için 3 duvar kağıdı çizeyim.</p></div>
+      <div class="aipop__list"><p class="aipop__hi">Ne istersen yaz. Resmin <b>ChatGPT</b>'de çizilir: isteğin hazır yazılmış olarak <b>yeni sekmede ChatGPT açılır</b>, resmi oradan indirirsin (ücretsiz ChatGPT hesabın yeter).</p></div>
       <form class="aipop__form" autocomplete="off">
         <textarea rows="2" maxlength="300" placeholder="Hayal et ve yaz…"></textarea>
-        <button class="btn btn--primary" type="submit">Oluştur</button>
-      </form>`;
+        <button class="btn btn--primary" type="submit">ChatGPT'de çiz ↗</button>
+      </form>
+      <button type="button" class="aipop__local">ya da burada hızlıca çiz (ücretsiz, daha düşük kalite)</button>`;
     document.body.append(fab, pop);
     list = $('.aipop__list', pop); ta = $('textarea', pop); go = $('button[type=submit]', pop);
     fab.onclick = () => toggle();
     $('.aipop__x', pop).onclick = () => toggle(false);
-    $('form', pop).addEventListener('submit', (e) => {
-      e.preventDefault();
+    // returns the request, or '' when it is empty / not allowed (then the box says why)
+    const take = () => {
       const text = ta.value.trim();
-      if (!text) { ta.focus(); return; }
+      if (!text) { ta.focus(); return ''; }
       ta.value = '';
       if (BLOCK.test(text)) {
         const m = document.createElement('div'); m.className = 'aimsg';
         m.innerHTML = `<p class="aimsg__you">${esc(text)}</p><div class="aimsg__ai"><small class="is-bad">Bu isteğe izin verilmiyor.</small></div>`;
-        list.append(m); list.scrollTop = list.scrollHeight; return;
+        list.append(m); list.scrollTop = list.scrollHeight; return '';
       }
-      generate(text);
+      return text;
+    };
+    $('form', pop).addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = take(); if (text) openGPT(text);
     });
+    $('.aipop__local', pop).onclick = () => { const text = take(); if (text) generate(text); };
     ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('form', pop).requestSubmit(); } });
     list.addEventListener('click', (e) => { const c = e.target.closest('.aithumb.is-ready'); if (c) view(c); });
     document.addEventListener('keydown', (e) => { if (!pop.hidden && e.key === 'Escape' && (!lb || lb.hidden)) toggle(false); });
