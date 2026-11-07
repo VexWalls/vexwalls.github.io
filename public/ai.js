@@ -30,8 +30,18 @@
         const j = await r.json().catch(() => ({}));
         throw new Error(j.error || 'HTTP ' + r.status);
       }
-      return await r.blob();
+      const blob = await r.blob();
+      return r.headers.get('X-Source') === 'pollinations' ? await cropLogo(blob) : blob;
     } finally { clearTimeout(timer); }
+  }
+  // backup pictures carry a small logo in the bottom strip: cut that strip off
+  async function cropLogo(blob) {
+    try {
+      const bmp = await createImageBitmap(blob), h = Math.round(bmp.height * 0.92);
+      const c = document.createElement('canvas'); c.width = bmp.width; c.height = h;
+      c.getContext('2d').drawImage(bmp, 0, 0, bmp.width, h, 0, 0, bmp.width, h);
+      return await new Promise((res) => c.toBlob((b) => res(b || blob), 'image/jpeg', 0.95));
+    } catch { return blob; }
   }
 
   function card() {

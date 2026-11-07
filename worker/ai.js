@@ -65,6 +65,17 @@ export default {
         return new Response(bytes, { headers: { ...h, 'Content-Type': png ? 'image/png' : 'image/jpeg', 'X-Model': m.id, 'X-Prompt': encodeURIComponent(en).slice(0, 500) } });
       } catch (e) { lastErr = String(e && e.message || e); }
     }
+    // Backup when the daily Workers AI budget is used up: Pollinations' free image API (FLUX).
+    // It stamps a small logo bottom-right; the site cuts that strip off (X-Source header).
+    try {
+      const pw = W > H ? 1280 : 720, ph = Math.round((W > H ? 1280 * H / W : 720 * H / W) / 0.92);
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(full)}?width=${pw}&height=${ph}&seed=${Math.floor(Math.random() * 1e9)}&nologo=true&safe=true&model=flux`;
+      const r = await fetch(url, { headers: { 'User-Agent': 'VexWalls/1.0 (+https://vexwalls.github.io)' } });
+      if (r.ok && /^image\//.test(r.headers.get('content-type') || '')) {
+        return new Response(r.body, { headers: { ...h, 'Content-Type': r.headers.get('content-type'), 'X-Source': 'pollinations', 'Access-Control-Expose-Headers': 'X-Source' } });
+      }
+      lastErr += ' | backup ' + r.status;
+    } catch (e) { lastErr += ' | backup ' + (e && e.message); }
     const quota = /limit|quota|neurons|429/i.test(lastErr);
     return json({ error: quota ? 'quota' : 'failed', detail: lastErr.slice(0, 200) }, quota ? 429 : 502, h);
   },
