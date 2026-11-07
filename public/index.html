@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="settings.css">
+  <link rel="stylesheet" href="pfp.css">
   <script>/* apply light/dark before the page paints (no flash) */try{var p=JSON.parse(localStorage.getItem("crywall.prefs")||"{}");var l=p.mode==="light"||(p.mode==="system"&&matchMedia("(prefers-color-scheme: light)").matches);document.documentElement.dataset.mode=l?"light":"dark";if(p.calm)document.documentElement.classList.add("calm")}catch(e){}</script>
 </head>
 <body>
@@ -68,6 +69,7 @@
     <nav class="tabs" aria-label="Bölümler">
       <button class="tab is-active" data-mode="static">Duvar Kağıtları</button>
       <button class="tab" data-mode="live"><span class="dot"></span>Hareketli</button>
+      <button class="tab" data-mode="pfp">Profil Resimleri</button>
       <button class="tab" data-mode="fav">Favorilerim</button>
     </nav>
     <div class="themes">
@@ -141,6 +143,7 @@
       <div class="toolbar__title">
         <button class="backbtn" id="backBtn" hidden>← Duvar kağıdına dön</button><span class="secno">02</span><h2 id="gridTitle">Keşfet</h2>
         <span class="count" id="gridCount"></span>
+        <button class="btn btn--sm shufflebtn" id="shuffleBtn" type="button" title="Bu kategoriden başka duvar kağıtları göster">↻ Farklılarını göster</button>
       </div>
       <div class="toolbar__filters" id="filters">
         <div class="seg" id="sortSeg">
@@ -169,6 +172,7 @@
       </div>
     </div>
     <div class="livecats" id="liveCats" hidden></div>
+    <div class="pfpcats" id="pfpCats" hidden></div>
     <div class="grid" id="grid"></div>
     <div class="empty" id="empty" hidden></div>
     <div class="loader" id="loader"><span></span><span></span><span></span></div>
@@ -262,6 +266,7 @@
 <script src="i18n-langs.js"></script>
 <script src="i18n.js"></script>
 <script src="settings.js"></script>
+<script src="pfp.js"></script>
 <script src="app.js"></script>
 <script src="fx.js"></script>
 <script src="pwa.js"></script>

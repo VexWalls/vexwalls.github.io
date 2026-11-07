@@ -35,16 +35,24 @@ $Cats = @(
     @{ key = 'japonya'; q = '+Japan'; c = '100' }, @{ key = 'uzay'; q = '+space'; c = '100' }, @{ key = 'siberpunk'; q = '+cyberpunk'; c = '100' },
     @{ key = 'fantastik'; q = '+"fantasy art"'; c = '100' }, @{ key = 'dijital'; q = '+"digital art"'; c = '100' }, @{ key = 'araba'; q = '+cars'; c = '100' },
     @{ key = 'sehir'; q = '+city'; c = '100' }, @{ key = 'hayvan'; q = '+animals'; c = '100' }, @{ key = 'minimal'; q = '+minimalism'; c = '100' },
-    @{ key = 'soyut'; q = '+abstract'; c = '100' }, @{ key = 'karanlik'; q = '+dark'; c = '100' }
+    @{ key = 'soyut'; q = '+abstract'; c = '100' }, @{ key = 'karanlik'; q = '+dark'; c = '100' },
+    # villains: several searches merged (original art only, see $VillainBan)
+    @{ key = 'kotu'; c = '100'; qs = @('+"Grim Reaper"', '+demon +"fantasy art"', '+"dark fantasy" +creature', '+skull +"dark fantasy"',
+        '+mask +"fantasy art"', '+jester +"digital art"', '+reaper') }
 )
+# Villain searches must never show franchise villains (Joker, League of Legends, horror films…)
+$VillainBan = ' -Joker -"The Joker" -Batman -"Harley Quinn" -"DC Comics" -"League of Legends" -Shaco -Pennywise -"It (movie)" -"Stephen King"' +
+    ' -Arkham -"Heath Ledger" -"Joaquin Phoenix" -"Jared Leto" -Terrifier -"Art the Clown" -"The Amazing Digital Circus" -"Glitch Productions"' +
+    ' -"In Flames" -Dodge -"Dodge Challenger" -cars -clownfish -fish -"Dark Souls" -"Elden Ring" -Diablo -"Doom (game)" -"Devil May Cry" -"Demon Slayer"' +
+    ' -"Kimetsu no Yaiba" -"Jujutsu Kaisen" -"Chainsaw Man" -Bleach -"Death Note" -"Ghost of Tsushima" -"Sekiro" -"Hollow Knight" -Overwatch -Warhammer'
 $AnimeExtra = ' -"Makoto Shinkai" -"Studio Ghibli" -"Kimi no Na Wa" -"Genshin Impact" -"Honkai: Star Rail" -"Hatsune Miku"'
 
-function Get-Wallhaven($cat, [string]$ratios, [int]$page, [string]$range) {
+function Get-Wallhaven($cat, [string]$ratios, [int]$page, [string]$range, [string]$atleast = '1920x1080') {
     $q = ($cat.q + (Get-WhFilter $cat.q) + $(if ($cat.c -eq '010') { $AnimeExtra } else { '' })).Trim()
     # 'all' = best of all time. Wallhaven has no topRange=all (it silently falls back to 1 month),
     # so sort by favourites instead.
     $sort = if ($range -eq 'all') { 'sorting=favorites' } else { "sorting=toplist&topRange=$range" }
-    $url = "https://wallhaven.cc/api/v1/search?purity=100&$sort&atleast=1920x1080" +
+    $url = "https://wallhaven.cc/api/v1/search?purity=100&$sort&atleast=$atleast" +
         "&categories=$($cat.c)&ratios=$ratios&page=$page&q=" + [uri]::EscapeDataString($q)
     for ($try = 1; $try -le 4; $try++) {
         try {
@@ -88,10 +96,19 @@ $total = 0
 foreach ($cat in $Cats) {
     $items = New-Object System.Collections.ArrayList
     $seen = @{}
-    # desktop (landscape) pages, then phone (portrait) pages
-    $plan = @(@('landscape', 1, '1y'), @('landscape', 2, '1y'), @('landscape', 3, '1y'), @('landscape', 1, 'all'), @('landscape', 2, 'all'), @('portrait', 1, '1y'), @('portrait', 1, 'all'))
-    foreach ($p in $plan) {
-        $r = Get-Wallhaven $cat $p[0] $p[1] $p[2]
+    # desktop (landscape) pages, then phone (portrait) pages — enough for ~250 per category
+    $plan = @(@('landscape', 1, '1y'), @('landscape', 2, '1y'), @('landscape', 3, '1y'), @('landscape', 1, 'all'), @('landscape', 2, 'all'),
+        @('landscape', 3, 'all'), @('landscape', 4, 'all'), @('portrait', 1, '1y'), @('portrait', 1, 'all'), @('portrait', 2, 'all'))
+    $jobs = @()
+    if ($cat.qs) {
+        # merged category: a few pages of each search
+        foreach ($sq in $cat.qs) { foreach ($p in @(@('landscape', 1, 'all'), @('landscape', 2, 'all'), @('landscape', 1, '1y'), @('portrait', 1, 'all'))) {
+            $jobs += , @(@{ key = $cat.key; q = $sq + $VillainBan; c = $cat.c }, $p) } }
+    } else { foreach ($p in $plan) { $jobs += , @($cat, $p) } }
+    foreach ($j in $jobs) {
+        $p = $j[1]
+        $r = Get-Wallhaven $j[0] $p[0] $p[1] $p[2]
+        if ($r -and $r.meta -and $r.meta.last_page -lt $p[1]) { continue }   # past the last page
         if (-not $r) { continue }
         foreach ($w in @($r.data)) {
             if (-not $w -or $seen[$w.id]) { continue }; $seen[$w.id] = 1
@@ -109,6 +126,37 @@ foreach ($cat in $Cats) {
     Write-Host ("{0,-10} {1} wallpapers" -f $cat.key, $items.Count)
     $total += $items.Count
 }
+# Profile pictures (Discord / Instagram / Steam): square-ish images, centre-cropped to a 1024px
+# square preview t/<id>-a.jpg on our own site, so the browser can crop/download them freely.
+$Pfp = @(
+    @{ key = 'minimal'; q = '+minimalism'; c = '100' }, @{ key = 'doga'; q = '+nature'; c = '100' },
+    @{ key = 'uzay'; q = '+space'; c = '100' }, @{ key = 'karanlik'; q = '+dark'; c = '100' },
+    @{ key = 'hayvan'; q = '+animals'; c = '100' }, @{ key = 'kedi'; q = '+cats'; c = '100' },
+    @{ key = 'anime'; q = $CharacterQuery; c = '010' }, @{ key = 'neon'; q = '+neon'; c = '100' },
+    @{ key = 'piksel'; q = '+"pixel art"'; c = '100' }
+)
+$MaxNewThumbs += 900       # own budget for the square previews
+$pfpTotal = 0
+foreach ($cat in $Pfp) {
+    $items = New-Object System.Collections.ArrayList
+    $seen = @{}
+    foreach ($p in @(@(1, 'all'), @(2, 'all'), @(1, '1y'))) {
+        $r = Get-Wallhaven $cat '1x1,5x4,4x3,4x5,3x4' $p[0] $p[1] '1000x1000'
+        if (-not $r) { continue }
+        foreach ($w in @($r.data)) {
+            if (-not $w -or $seen[$w.id]) { continue }; $seen[$w.id] = 1
+            if (-not (New-Thumb $w.id $w.path '-a' "crop='min(iw,ih)':'min(iw,ih)',scale=1024:1024" 4)) { continue }
+            [void]$items.Add([ordered]@{
+                id = $w.id; t = $w.thumbs.large; f = $w.path; w = [int]$w.dimension_x; h = [int]$w.dimension_y
+                fv = [int]$w.favorites; c = @($w.colors); u = $w.url; a = "t/$($w.id)-a.jpg"
+            })
+        }
+    }
+    Save-Json (Join-Path $Out (Join-Path 'a' "$($cat.key).json")) @($items)
+    Write-Host ("pfp {0,-10} {1}" -f $cat.key, $items.Count)
+    $pfpTotal += $items.Count
+}
+
 # drop phone thumbnails of wallpapers that left the catalog (keeps the site small)
 Get-ChildItem $ThumbDir -Filter *.jpg -ErrorAction SilentlyContinue | Where-Object { -not $keepThumbs[$_.Name] } | Remove-Item -ErrorAction SilentlyContinue
 Write-Host "phone thumbnails: $($keepThumbs.Count) ($newThumbs new)$(if (-not $Ffmpeg) { ' — ffmpeg not found, skipped' })"
@@ -132,5 +180,5 @@ foreach ($lc in $Live) {
     $liveTotal += $items.Count
 }
 
-Save-Json (Join-Path $Out 'index.json') ([ordered]@{ updated = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); wallpapers = $total; videos = $liveTotal })
+Save-Json (Join-Path $Out 'index.json') ([ordered]@{ updated = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); wallpapers = $total; videos = $liveTotal; pfp = $pfpTotal })
 Write-Host "Done: $total wallpapers, $liveTotal live videos -> $Out"

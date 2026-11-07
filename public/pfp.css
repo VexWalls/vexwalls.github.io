@@ -1,0 +1,87 @@
+/* opening a wallpaper hides the page scrollbar: keep its space so the page doesn't shift */
+html { scrollbar-gutter: stable; }
+
+/* 4 tabs now: keep every label on one line */
+.tab, #accBtn { white-space: nowrap; }
+
+/* ---------- profile pictures: grid cards ---------- */
+.grid.is-pfp { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.grid.is-pfp .card { aspect-ratio: 1; background: transparent; }
+.card--pfp { overflow: visible; cursor: pointer; }
+.card--pfp .pfp__face { position: absolute; inset: 8%; border-radius: 50%; overflow: hidden; background: var(--card); box-shadow: 0 0 0 1px var(--line-2), 0 18px 40px -18px rgba(0,0,0,.8); transition: border-radius .35s var(--ease), transform .35s var(--ease); }
+.card--pfp .pfp__face img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .3s; }
+.card--pfp .pfp__face img.is-loaded { opacity: 1; }
+.card--pfp:hover .pfp__face, .card--pfp:focus-visible .pfp__face { border-radius: 22%; transform: translateY(-3px); }
+.card--pfp .pfp__cta { position: absolute; left: 50%; bottom: 2%; transform: translate(-50%, 6px); opacity: 0; transition: opacity .25s, transform .25s var(--ease); white-space: nowrap; pointer-events: none; }
+.card--pfp:hover .pfp__cta { opacity: 1; transform: translate(-50%, 0); }
+.pfpcats { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 18px; }
+.pfpcats__note { flex-basis: 100%; margin: 0 0 4px; font-size: 13.5px; color: var(--muted); }
+
+/* ---------- studio ---------- */
+.pfp { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; padding: 20px; }
+.pfp__backdrop { position: absolute; inset: 0; background: rgba(3,4,7,.88); animation: fade .25s; }
+.pfp__panel { position: relative; width: min(940px, 100%); max-height: calc(100vh - 40px); overflow: auto; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 22px; padding: 22px 24px 24px; box-shadow: 0 40px 120px -20px rgba(0,0,0,.9); animation: pop .3s var(--ease); }
+.pfp__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.pfp__head h3 { margin: 2px 0 0; font-size: 20px; }
+.pfp__close { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line-2); background: none; color: var(--text); font-size: 15px; cursor: pointer; flex: none; }
+.pfp__body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 26px; align-items: start; }
+.pfp__stage { position: relative; width: 100%; max-width: 460px; aspect-ratio: 1; margin: 0 auto; border-radius: 14px; overflow: hidden; background: #000; touch-action: none; cursor: grab; user-select: none; }
+.pfp__stage:active { cursor: grabbing; }
+.pfp__img { position: absolute; inset: 0; background-repeat: no-repeat; }
+.pfp__mask { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 999px rgba(0,0,0,.55); outline: 2px solid rgba(255,255,255,.75); outline-offset: -2px; pointer-events: none; transition: border-radius .3s var(--ease); }
+.pfp__stage.is-square .pfp__mask { border-radius: 0; box-shadow: none; }
+.pfp__tools { display: flex; align-items: center; gap: 10px; max-width: 460px; margin: 14px auto 0; color: var(--muted); }
+.pfp__tools input { flex: 1; accent-color: var(--accent); }
+.pfp__hint { max-width: 460px; margin: 8px auto 0; font-size: 12.5px; color: var(--dim); }
+.pfp__right { display: flex; flex-direction: column; gap: 14px; }
+.pfp__av { background-repeat: no-repeat; background-color: #222; flex: none; }
+.pfp__round { border-radius: 50%; }
+.pfp__sq { border-radius: 4px; }
+.pfp__pv { border-radius: 14px; background: var(--card); border: 1px solid var(--line); padding: 14px; font-size: 13px; color: var(--muted); }
+.pfp__pv b { color: var(--text); }
+/* Discord-like profile card (dark, own colours) */
+.pfp__pv--discord { position: relative; background: #1e1f24; border-color: #2b2d33; padding: 0 0 12px; overflow: hidden; color: #b5bac1; }
+.pfp__pv--discord b { color: #f2f3f5; }
+.pfp__banner { height: 62px; background: linear-gradient(120deg, rgb(var(--accent-rgb, 120 120 255) / .7), #2b2d33); }
+.pfp__pv--discord > .pfp__av { width: 80px; height: 80px; margin: -40px 0 6px 14px; box-shadow: 0 0 0 6px #1e1f24; }
+.pfp__pv--discord > b, .pfp__pv--discord > span { display: block; padding: 0 16px; }
+.pfp__pv--discord > b { font-size: 16px; }
+.pfp__msg { display: flex; align-items: center; gap: 10px; margin: 12px 12px 0; padding: 10px; border-radius: 10px; background: #2b2d31; }
+.pfp__msg p { margin: 0; color: #dbdee1; }
+.pfp__av--sm { width: 36px; height: 36px; }
+.pfp__row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pfp__pv--ig, .pfp__pv--steam { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pfp__ring { padding: 3px; border-radius: 50%; background: conic-gradient(from 200deg, #f9ce34, #ee2a7b, #6228d7, #f9ce34); }
+.pfp__ring .pfp__av { width: 74px; height: 74px; box-shadow: 0 0 0 3px var(--card); }
+.pfp__pv--steam .pfp__av { width: 80px; height: 80px; box-shadow: 0 0 0 2px #57cbde; }
+.pfp__dl { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+.pfp__right .note { margin: 0; font-size: 12.5px; color: var(--dim); }
+.pfp__right .note a { color: var(--muted); }
+[data-mode="light"] .pfp__backdrop { background: rgba(20,22,30,.55); }
+[data-mode="light"] .pfp__close { color: var(--text); }
+
+@media (max-width: 760px) {
+  .pfp { padding: 0; place-items: stretch; }
+  .pfp__panel { max-height: 100vh; height: 100%; border-radius: 0; padding: 16px; }
+  .pfp__body { grid-template-columns: 1fr; gap: 18px; }
+  .grid.is-pfp { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .card--pfp .pfp__cta { display: none; }
+}
+
+/* "Farklılarını göster" next to the section title */
+.shufflebtn { margin-left: 10px; white-space: nowrap; }
+@media (max-width: 760px) { .shufflebtn { margin: 6px 0 0; } }
+
+/* phones: tabs keep their full width; the tab bar scrolls sideways instead of cutting words */
+.tabs > .tab { flex: none; }
+
+/* "Benzerleri" in the wallpaper window: big enough to actually see (was 4 tiny tiles a row) */
+.similar { margin-top: 18px; }
+.similar__title { font-size: 15px !important; color: var(--text) !important; margin-bottom: 10px !important; }
+.similar__grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+.similar__grid button { position: relative; border-radius: 12px !important; aspect-ratio: 16 / 10; cursor: pointer; }
+.similar__grid img { transition: transform .35s var(--ease); }
+.similar__grid button:hover img { transform: scale(1.06); }
+.similar__grid button span { position: absolute; left: 8px; bottom: 6px; font-size: 11px; font-weight: 600; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); opacity: 0; transition: opacity .2s; }
+.similar__grid button:hover span { opacity: 1; }
+@media (pointer: coarse) { .similar__grid button span { opacity: 1; } }

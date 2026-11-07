@@ -29,9 +29,11 @@
     { key: 'minimal',   name: 'Minimal',         q: '+minimalism',       c: '100', img: 'https://th.wallhaven.cc/lg/zp/zpq1dg.jpg' },
     { key: 'soyut',     name: 'Soyut',           q: '+abstract',         c: '100', img: 'https://th.wallhaven.cc/lg/w5/w5m6yr.jpg' },
     { key: 'karanlik',  name: 'Karanlık',        q: '+dark',             c: '100', img: 'https://th.wallhaven.cc/lg/yq/yqqvv7.jpg' },
+    // original villains only: reapers, demons, jesters, masked figures (no Joker / LoL etc.)
+    { key: 'kotu',      name: 'Kötü Karakterler', q: '+"Grim Reaper"',   c: '100', img: 'https://th.wallhaven.cc/lg/j5/j5o32w.jpg' },
   ];
-  // Mixed views (Keşfet, home slideshow) show only a little of these "people" categories.
-  const RARE_CATS = new Set(['karakter']);
+  // Mixed views (Keşfet, home slideshow) show only a little of these categories.
+  const RARE_CATS = new Set(['karakter', 'kotu']);
   const mixPool = () => {
     const base = CATS.filter((c) => c.key !== 'kesfet' && !RARE_CATS.has(c.key));
     return Math.random() < 0.3 ? base.concat(CATS.filter((c) => RARE_CATS.has(c.key))) : base;
@@ -48,6 +50,11 @@
     ['mx:nature', 'Doğa', 'Gerçek çekim'], ['mx:galaxy', 'Galaksi', 'Gerçek çekim'], ['mx:sea', 'Okyanus', 'Gerçek çekim'],
     ['mx:forest', 'Orman', 'Gerçek çekim'], ['mx:city', 'Şehir', 'Gerçek çekim'], ['mx:neon', 'Neon', 'Gerçek çekim'], ['mx:fire', 'Ateş', 'Gerçek çekim'],
   ];
+  // Profile pictures (data/a/<key>.json, square previews t/<id>-a.jpg). 'karisik' = all mixed.
+  const PFP_CATS = [['karisik', 'Karışık'], ['minimal', 'Minimal'], ['doga', 'Doğa'], ['uzay', 'Uzay'], ['karanlik', 'Karanlık'],
+    ['hayvan', 'Hayvanlar'], ['kedi', 'Kediler'], ['neon', 'Neon'], ['piksel', 'Piksel Sanat'], ['anime', 'Anime Karakter']];
+  // the files live on the website; from the PC version they're read from there (GitHub Pages allows it)
+  const SITE = /github\.io$/.test(location.hostname) || new URLSearchParams(location.search).has('online') ? '' : 'https://vexwalls.github.io/';
 
   const ICON = {
     heart: '<svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-10-9.4C.4 8.4 2.3 4.5 6 4.1c2-.2 3.6.8 4.6 2.2l1.4 1.8 1.4-1.8c1-1.4 2.6-2.4 4.6-2.2 3.7.4 5.6 4.3 4 7.5C19.5 16.4 12 21 12 21Z"/></svg>',
@@ -58,6 +65,7 @@
     down: '<svg viewBox="0 0 24 24"><path d="M11 3h2v10.2l3.6-3.6 1.4 1.4-6 6-6-6 1.4-1.4 3.6 3.6V3ZM4 19h16v2H4v-2Z"/></svg>',
     play: '<svg viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5Z"/></svg>',
     stop: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    user: '<svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 12c5 0 9 2.5 9 5.5V22H3v-2.5C3 16.5 7 14 12 14Z"/></svg>',
     share: '<svg viewBox="0 0 24 24"><path d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7a3 3 0 0 0 .1.8L8.4 11.2a3 3 0 1 0 0 1.6l6.7 3.4A3 3 0 1 0 18 16Z"/></svg>',
   };
 
@@ -65,7 +73,7 @@
   const S = {
     mode: 'static', cat: CATS[0], q: '', title: 'Keşfet', colors: '',
     sort: 'toplist', range: '1y', res: '1920x1080', ratio: 'landscape',
-    liveCat: LIVE_CATS[0][0],
+    liveCat: LIVE_CATS[0][0], pfpCat: 'karisik',
     page: 1, last: 1, seed: '', loading: false, done: false, token: 0,
     items: [], lives: [], monitors: [], mon: 'all',
   };
@@ -320,7 +328,7 @@
     const list = await similarOf(it);
     if (cur !== it || !list.length) return;
     box.innerHTML = `<p class="similar__title">Benzerleri</p><div class="similar__grid">${list.map((x, i) =>
-      `<button data-i="${i}" title="${esc(x.res)}"><img src="${esc(thumbOf(x))}" alt="" loading="lazy"></button>`).join('')}</div>`;
+      `<button data-i="${i}" title="Aç"><img src="${esc(thumbOf(x))}" alt="" loading="lazy"><span>${esc(x.res)}</span></button>`).join('')}</div>`;
     box.onclick = (e) => { const b = e.target.closest('[data-i]'); if (b) openViewer(+b.dataset.i, list, 1); };
   }
 
@@ -443,7 +451,7 @@
     row.innerHTML = '';
     CATS.forEach((c) => {
       const b = el('button', 'cat' + (S.cat === c && !S.q && !S.colors ? ' is-active' : ''), `<img src="${c.img}" alt="" loading="lazy"><span>${esc(c.name)}</span>`);
-      b.onclick = () => { S.cat = c; S.q = ''; S.colors = ''; S.title = c.name; renderCats(); reset(true); };
+      b.onclick = () => { S.cat = c; S.q = ''; S.colors = ''; S.title = c.name; S.shuffled = false; renderCats(); reset(true); };
       row.append(b);
     });
     const lc = $('#liveCats');
@@ -452,32 +460,68 @@
     LIVE_CATS.forEach(([k, n, g]) => {
       if (g !== group) { group = g; lc.append(el('span', 'chip-group', esc(g))); }
       const b = el('button', 'chip' + (S.liveCat === k ? ' is-active' : ''), esc(n));
-      b.onclick = () => { S.liveCat = k; renderCats(); reset(true); };
+      b.onclick = () => { S.liveCat = k; S.shuffled = false; renderCats(); reset(true); };
       lc.append(b);
+    });
+    const pc = $('#pfpCats');
+    pc.innerHTML = '<p class="pfpcats__note">Discord, Instagram, Steam ve oyun profilleri için kare resimler. Birine dokun, kırp ve indir.</p>';
+    PFP_CATS.forEach(([k, n]) => {
+      const b = el('button', 'chip' + (S.pfpCat === k ? ' is-active' : ''), esc(n));
+      b.onclick = () => { S.pfpCat = k; S.shuffled = false; renderCats(); reset(true); };
+      pc.append(b);
     });
   }
 
   // ---------- grid ----------
   const grid = $('#grid');
   // browser Back button support: every view change is a history entry
-  const navState = () => ({ mode: S.mode, cat: S.cat.key, q: S.q, colors: S.colors, title: S.title, live: S.liveCat });
+  const navState = () => ({ mode: S.mode, cat: S.cat.key, q: S.q, colors: S.colors, title: S.title, live: S.liveCat, pfp: S.pfpCat });
   const sameNav = (a, b) => a && b && JSON.stringify(a) === JSON.stringify(b);
   let restoring = false;
+  // The open section is also written into the address (?c=samuray, ?m=live&l=…), so the
+  // browser's refresh button keeps the visitor where they were instead of the home page.
+  function navUrl(st) {
+    const u = new URL(location.href);
+    ['c', 'm', 'l', 'p', 'q', 'w', 'v'].forEach((k) => u.searchParams.delete(k));
+    if (st.mode === 'static') {
+      if (st.q && !st.title.startsWith('#')) u.searchParams.set('q', st.q);
+      else if (st.cat !== 'kesfet' && !st.colors && !st.q) u.searchParams.set('c', st.cat);
+    } else {
+      u.searchParams.set('m', st.mode);
+      if (st.mode === 'live') u.searchParams.set('l', st.live);
+      if (st.mode === 'pfp') u.searchParams.set('p', st.pfp);
+    }
+    return u.pathname + u.search + u.hash;
+  }
   function remember() {
-    if (restoring) return;
+    if (restoring) { history.replaceState(history.state, '', navUrl(navState())); return; }
     const st = navState();
-    if (!history.state) history.replaceState(st, '');
-    else if (!sameNav(history.state, st)) history.pushState(st, '');
+    if (!history.state) history.replaceState(st, '', navUrl(st));
+    else if (!sameNav(history.state, st)) history.pushState(st, '', navUrl(st));
+  }
+  // start in the section named in the address (after a refresh / shared link)
+  function navFromUrl() {
+    const q = new URLSearchParams(location.search);
+    const m = q.get('m'), c = q.get('c'), l = q.get('l'), p = q.get('p'), s = q.get('q');
+    if (m === 'live' && LIVE_CATS.some((x) => x[0] === l)) { S.liveCat = l; return 'live'; }
+    if (m === 'live') return 'live';
+    if (m === 'pfp') { if (PFP_CATS.some((x) => x[0] === p)) S.pfpCat = p; return 'pfp'; }
+    if (m === 'fav' || m === 'recent') return m;
+    const cat = CATS.find((x) => x.key === c);
+    if (cat) { S.cat = cat; S.title = cat.name; return 'static'; }
+    if (s) { S.q = s.slice(0, 80); S.title = '“' + S.q + '”'; return 'static'; }
+    return '';
   }
   addEventListener('popstate', (e) => {
-    // phone Back button / swipe: first closes an open wallpaper page
+    // phone Back button / swipe: first closes the profile-picture studio, then an open wallpaper page
+    if (window.CWPfp && CWPfp.isOpen()) { CWPfp.close(true); return; }
     if (!viewer.hidden) { closeViewer(true); return; }
     const st = e.state; if (!st || st.viewer) return;
     if (sameNav(st, navState())) return;       // same view: nothing to reload
     if (backTo && sameNav(backTo.nav, st)) { history.replaceState(st, ''); goBackToWallpaper(); return; }   // browser Back after a tag/colour jump
     restoring = true;
     S.cat = CATS.find((c) => c.key === st.cat) || CATS[0]; S.q = st.q || ''; S.colors = st.colors || '';
-    S.title = st.title || S.cat.name; S.liveCat = st.live || S.liveCat;
+    S.title = st.title || S.cat.name; S.liveCat = st.live || S.liveCat; S.pfpCat = st.pfp || S.pfpCat;
     switchMode(st.mode || 'static', false); renderCats(); reset('force');
     restoring = false;
   });
@@ -485,10 +529,13 @@
   function reset(scroll) {
     remember();
     setTimeout(() => window.__cwUpdateBack && window.__cwUpdateBack(), 0);
-    S.token++; S.page = 1; S.done = false; S.seed = ''; S.items = []; S.loading = false;
+    S.token++; S.page = 1; S.done = false; S.seed = ''; S.items = []; S.loading = false; S.all = null;
+    const sb = $('#shuffleBtn'); if (sb) sb.hidden = S.mode === 'fav' || S.mode === 'recent';
     grid.innerHTML = ''; $('#empty').hidden = true; $('#gridCount').textContent = '';
     grid.classList.toggle('is-portrait', S.mode === 'static' && S.ratio === 'portrait');
-    if (S.mode === 'live') $('#gridTitle').textContent = 'Hareketli · ' + (LIVE_CATS.find((c) => c[0] === S.liveCat) || ['', ''])[1];
+    grid.classList.toggle('is-pfp', S.mode === 'pfp');
+    if (S.mode === 'pfp') $('#gridTitle').textContent = 'Profil Resimleri · ' + (PFP_CATS.find((c) => c[0] === S.pfpCat) || ['', ''])[1];
+    else if (S.mode === 'live') $('#gridTitle').textContent = 'Hareketli · ' + (LIVE_CATS.find((c) => c[0] === S.liveCat) || ['', ''])[1];
     else if (S.mode === 'fav') $('#gridTitle').textContent = 'Favorilerim';
     else if (S.mode === 'recent') $('#gridTitle').textContent = 'Son kullanılanlar';
     else $('#gridTitle').textContent = S.title;
@@ -502,16 +549,23 @@
     const token = S.token;
     try {
       let list = [];
-      if (CATALOG && S.mode === 'static' && !(S.cat.key === 'kesfet' && !S.q && !S.colors) && !(API && S.title.startsWith('#'))) {
+      if (S.mode === 'pfp') {
+        // same order for every page; "Farklılarını göster" shuffles it
+        const all = S.page === 1 || !S.all ? (S.all = S.shuffled ? shuffle((await pfpList(S.pfpCat)).slice()) : await pfpList(S.pfpCat)) : S.all;
+        if (token !== S.token) return;
+        if (S.page === 1) $('#gridCount').textContent = all.length ? nf.format(all.length) + ' profil resmi' : '';
+        list = all.slice((S.page - 1) * 36, S.page * 36);
+        if (S.page * 36 >= all.length) S.done = true;
+      } else if (CATALOG && S.mode === 'static' && !(S.cat.key === 'kesfet' && !S.q && !S.colors) && !(API && S.title.startsWith('#'))) {
         // website version: filter the nightly catalog in the browser
-        const all = await catalogQuery();
+        const all = S.page === 1 || !S.all ? (S.all = await catalogQuery()) : S.all;   // one order for all pages
         if (token !== S.token) return;
         if (all === 'blocked') { S.done = true; showEmpty('', true); return; }
         if (S.page === 1) $('#gridCount').textContent = nf.format(all.length) + ' duvar kağıdı';
         list = all.slice((S.page - 1) * 24, S.page * 24);
         if (S.page * 24 >= all.length) S.done = true;
       } else if (CATALOG && S.mode === 'live') {
-        const all = await liveCatalog(S.liveCat);
+        const all = S.page === 1 || !S.all ? (S.all = S.shuffled ? shuffle((await liveCatalog(S.liveCat)).slice()) : await liveCatalog(S.liveCat)) : S.all;
         if (token !== S.token) return;
         const lc = LIVE_CATS.find((c) => c[0] === S.liveCat);
         list = all.slice((S.page - 1) * 24, S.page * 24).map((v) => ({ kind: 'live', ...v, cat: S.liveCat, catName: lc ? lc[1].replace(/^\W+\s*/, '') : '' }));
@@ -575,6 +629,19 @@
     if (!liveCache[key]) liveCache[key] = fetch(`data/l/${key.replace(':', '-')}.json`).then((r) => (r.ok ? r.json() : [])).catch(() => []);
     return liveCache[key];
   }
+  const pfpCache = {};
+  const fromPfp = (o, key) => ({ kind: 'pfp', id: o.id, sq: SITE + o.a, full: o.f, w: o.w, h: o.h, favs: o.fv, colors: o.c || [], page: o.u, catKey: key });
+  function pfpFile(key) {
+    if (!pfpCache[key]) pfpCache[key] = fetch(`${SITE}data/a/${key}.json`).then((r) => (r.ok ? r.json() : [])).then((a) => a.map((o) => fromPfp(o, key))).catch(() => []);
+    return pfpCache[key];
+  }
+  async function pfpList(key) {
+    if (key !== 'karisik') return pfpFile(key);
+    // mixed: everything shuffled, only a few anime characters (same rule as Keşfet)
+    const lists = await Promise.all(PFP_CATS.slice(1).map((c) => pfpFile(c[0])));
+    const seen = new Set();
+    return shuffle(lists.flatMap((l, i) => (PFP_CATS[i + 1][0] === 'anime' ? shuffle(l.slice()).slice(0, 6) : l)).filter((it) => !seen.has(it.id) && seen.add(it.id)));
+  }
   const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   function passFilters(it) {
     const [mw, mh] = S.res.split('x').map(Number);
@@ -586,7 +653,7 @@
     return true;
   }
   function sortList(a) {
-    if (S.sort === 'random') return shuffle(a);
+    if (S.sort === 'random' || S.shuffled) return shuffle(a);
     if (S.sort === 'date_added') return a.sort((x, y) => String(y.date).localeCompare(String(x.date)));
     if (S.sort === 'hot') return a.sort((x, y) => y.views - x.views);
     return a.sort((x, y) => y.favs - x.favs);
@@ -614,6 +681,7 @@
     minimal: 'minimal sade basit simple',
     soyut: 'soyut abstract desen pattern renk color dalga wave',
     karanlik: 'karanlık karanlik dark siyah black gotik',
+    kotu: 'kötü kotu villain soytarı soytari jester palyaço palyaco clown iblis şeytan seytan demon azrail reaper ölüm olum maske mask korku horror kafatası kafatasi skull joker shaco',
   };
   async function catalogQuery() {
     let cats;
@@ -683,6 +751,18 @@
     c.tabIndex = 0;
     c.style.animationDelay = Math.min(delayIdx, 12) * 35 + 'ms';
     const bg = it.colors?.[0] || '#151823';
+    if (it.kind === 'pfp') {
+      c.className = 'card card--pfp';
+      c.innerHTML = `<div class="pfp__face" style="background:${esc(bg)}"><img src="${esc(it.sq)}" alt="Profil resmi" loading="lazy" decoding="async"></div>
+        <span class="btn btn--sm btn--primary pfp__cta">Kırp ve indir</span>`;
+      const im = $('img', c);
+      im.onload = () => im.classList.add('is-loaded');
+      im.onerror = () => c.remove();
+      const go = () => window.CWPfp && CWPfp.open(it.sq, { id: it.id, page: it.page });
+      c.addEventListener('click', go);
+      c.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      return c;
+    }
     const fk = favKey(it);
     if (it.kind === 'img') {
       c.innerHTML = `
@@ -780,6 +860,8 @@
     const wasOpen = !viewer.hidden;
     if (!wasOpen) history.pushState({ ...(history.state || navState()), viewer: true }, '');   // so the phone Back button closes it
     viewer.hidden = false; document.body.style.overflow = 'hidden';
+    // a new wallpaper always starts at the top (opening one from "Benzerleri" left it scrolled down)
+    ['.viewer__side', '.viewer__panel', '#viewer'].forEach((s) => { const n = $(s); if (n) n.scrollTop = 0; });
     const m = $('#vMedia');
     const wrap = el('div', 'vwrap');
     const old = m.querySelector('.vwrap:not(.out-left):not(.out-right)');
@@ -843,11 +925,15 @@
     const a = $('#vActions');
     const fav = `<button class="btn${isFav(it) ? ' is-fav' : ''}" data-act="fav">${ICON.heart}${isFav(it) ? 'Favorilerde' : 'Favorilere ekle'}</button>`;
     const share = `<button class="btn" data-act="share">${ICON.share}Paylaş</button>`;
+    // profile picture from this wallpaper (needs our own preview copy so the browser may crop it)
+    const pfpSrc = it.kind === 'img' && (it.desk || it.phone) ? SITE + (it.desk || it.phone) : '';
+    const pfpBtn = pfpSrc ? `<button class="btn" data-act="pfp">${ICON.user}Profil resmi yap</button>` : '';
     if (PHONE_MODE) {
       // phones: a website can't set the wallpaper itself, so save it and show how
       a.innerHTML = it.kind === 'img' ? `
         <button class="btn btn--primary" data-act="phone">${ICON.down}${SAVE_LABEL}</button>
         <div class="row">${fav}${share}</div>
+        ${pfpBtn}
         <p class="note">${IS_PHONE ? '' : '<b>Windows:</b> İndir › resme sağ tıkla › "Masaüstü arka planı olarak ayarla".<br><b>Telefonda:</b> '}<b>Duvar kağıdı yapmak için:</b><br>
           <b>iPhone:</b> Kaydet › "Görüntüyü Kaydet" › Fotoğraflar'da aç › Paylaş › "Duvar Kağıdı olarak kullan".<br>
           <b>Android:</b> Kaydet › Galeri'de aç › ⋮ › "Duvar kağıdı olarak ayarla" (ana ekran / kilit ekranı).</p>`
@@ -870,6 +956,7 @@
         if (b.dataset.act === 'fav') { toggleFav(it); renderActions(it); }
         else if (b.dataset.act === 'phone') savePhone(it);
         else if (b.dataset.act === 'share') shareIt(it);
+        else if (b.dataset.act === 'pfp') CWPfp.open(pfpSrc, { id: it.id, page: it.page });
         else if (b.dataset.act === 'connect') connectHelper();
       };
       return;
@@ -882,7 +969,7 @@
           <button class="btn" data-act="both">${ICON.both}İkisine birden</button>
         </div>
         <div class="row"><button class="btn" data-act="save">${ICON.down}İndir</button>${fav}</div>
-        ${share}
+        <div class="row">${share}${pfpBtn}</div>
         <p class="note">Görsel orijinal kalitede indirilir ve ekranını dolduracak şekilde ayarlanır.</p>`;
     } else {
       if (S.mon === 'span') S.mon = 'all';
@@ -901,6 +988,7 @@
       if (b.dataset.act === 'stop') return stopLive(b.dataset.stop || 'all');
       const act = b.dataset.act;
       if (act === 'fav') { toggleFav(it); renderActions(it); }
+      else if (act === 'pfp') CWPfp.open(pfpSrc, { id: it.id, page: it.page });
       else if (act === 'save') saveImg(it);
       else if (act === 'share') shareIt(it);
       else if (act === 'live') applyLive(it);
@@ -979,14 +1067,17 @@
     $('#catsSection').hidden = mode !== 'static';
     $('#filters').hidden = mode !== 'static';
     $('#liveCats').hidden = mode !== 'live';
+    $('#pfpCats').hidden = mode !== 'pfp';
     if (typeof updateIndicators === 'function') requestAnimationFrame(updateIndicators);
     if (doReset) reset('force');
   }
   $$('.tab').forEach((t) => (t.onclick = () => switchMode(t.dataset.mode)));
   $('[data-home]').onclick = (e) => { e.preventDefault(); S.cat = CATS[0]; S.q = ''; S.colors = ''; S.title = 'Keşfet'; switchMode('static', false); renderCats(); reset(); (window.cwScrollTo ? window.cwScrollTo(0) : scrollTo(0, 0)); };
 
+  // "Farklılarını göster": same category, a new random order (instead of refreshing the page)
+  $('#shuffleBtn').onclick = () => { S.shuffled = true; reset(true); };
   $$('#sortSeg button').forEach((b) => (b.onclick = () => {
-    S.sort = b.dataset.sort;
+    S.sort = b.dataset.sort; S.shuffled = false;
     $$('#sortSeg button').forEach((x) => x.classList.toggle('is-active', x === b));
     $('#rangeSel').hidden = S.sort !== 'toplist';
     reset(true);
@@ -1278,9 +1369,10 @@
     hero();
     await detectHelper();      // on the website: is the VexWalls PC helper running here?
     applyModeUI();
+    const startMode = navFromUrl();      // refreshed on a category? stay there
     renderCats();
-    switchMode('static', false);
-    reset();
+    switchMode(startMode || 'static', false);
+    if (startMode) setTimeout(() => reset('force'), 60); else reset();
     // (hero already started above)
     openShared();               // ?w=<id> / ?v=<id> share links
     status();

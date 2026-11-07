@@ -16,6 +16,8 @@ $CharacterQuery = '+"original characters" +"anime girls"'
 # Warrior / knight / samurai art often comes from big game & film series: keep those out too,
 # so the character categories only show ORIGINAL (fan-free, studio-free) designs.
 $FranchiseMore = ' -"God of War" -"Assassin''s Creed" -Destiny -Overwatch -"League of Legends" -"World of Warcraft" -Diablo -Skyrim -"The Elder Scrolls" -"Final Fantasy" -"For Honor" -"Ghost of Tsushima" -Sekiro -Bloodborne -"Dark Souls" -"Elden Ring" -"The Witcher" -Warhammer -Halo -"The Lord of the Rings" -"Game of Thrones" -Batman -"Spider-Man" -"Mortal Kombat" -"Monster Hunter"'
+# cartoons / films / games that slipped through (e.g. My Little Pony showed up in Fantastik)
+$FranchiseMore += ' -"My Little Pony" -"My Little Pony: Friendship is Magic" -Hasbro -Disney -Pixar -"Harry Potter" -Transformers -"Sonic the Hedgehog" -Nintendo -"Super Mario" -Minecraft -Fortnite -"Adventure Time" -SpongeBob -"The Simpsons" -"Rick and Morty" -"Gravity Falls" -Shrek -"Avatar (movie)" -"Avatar: The Last Airbender"'
 # Builds the exclusion part of a Wallhaven query for a search text.
 function Get-WhFilter([string]$q) {
     if ($q -like '*original characters*') { return ($WhExclude -replace ' -"anime girls"', '') + $FranchiseMore }

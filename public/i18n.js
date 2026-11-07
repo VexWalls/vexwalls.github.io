@@ -14,6 +14,11 @@
     // menu / tabs
     'Duvar Kağıtları': 'Wallpapers', 'Hareketli': 'Live', 'Favorilerim': 'Favorites', 'Giriş yap': 'Sign in', 'Kayıt ol': 'Sign up',
     'Telefona yükle': 'Get on phone', 'Ayarlar': 'Settings', 'Çıkış yap': 'Sign out', 'Hesabımı sil': 'Delete my account', '♥ Favorilerim': '♥ Favorites',
+    'Kötü Karakterler': 'Villains', '↻ Farklılarını göster': '↻ Show different ones', 'Bu kategoriden başka duvar kağıtları göster': 'Show other wallpapers from this category',
+    'Profil Resimleri': 'Profile Pictures', 'Profil resmi yap': 'Make profile picture', 'Kırp ve indir': 'Crop & download', 'Profil resmi': 'Profile picture', 'Karışık': 'Mixed', 'Kediler': 'Cats', 'Neon': 'Neon', 'Piksel Sanat': 'Pixel Art',
+    'Discord, Instagram, Steam için': 'For Discord, Instagram, Steam', 'Kare göster': 'Show square', 'Daire göster': 'Show circle', 'kullanıcı': 'user', 'selam! 👋': 'hi! 👋',
+    'Sürükleyerek kaydır, tekerlek ya da iki parmakla yakınlaştır.': 'Drag to move, use the wheel or two fingers to zoom.', '⬇ İndir · 1024 px': '⬇ Download · 1024 px',
+    'Discord, Instagram, Steam ve oyun profilleri için kare resimler. Birine dokun, kırp ve indir.': 'Square pictures for Discord, Instagram, Steam and game profiles. Tap one, crop and download.',
     // hero
     'duvar kağıdı': 'wallpapers', 'her gece yenilenir': 'refreshed nightly', 'Her açılışta': 'A new view', 'yeni bir manzara.': 'every time you look.',
     'Dağlar, denizler, uzay ve sanat — en sevilen duvar kağıtları tek tıkla ekranında.': 'Mountains, seas, space and art — the most-loved wallpapers on your screen in one click.',
