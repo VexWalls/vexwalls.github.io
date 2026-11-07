@@ -160,6 +160,8 @@ function Save-Image([string]$url) {
 
 # $monitor: 'all' | 'span' | monitor index (0-based, left to right)
 function Set-Desktop([string]$file, [string]$monitor) {
+    # Windows re-compresses wallpapers to 85 % JPEG quality (pale, blotchy colours): keep them at 100 %
+    try { Set-ItemProperty 'HKCU:\Control Panel\Desktop' -Name JPEGImportQuality -Value 100 -Type DWord -ErrorAction Stop } catch {}
     if ($monitor -eq 'span') { [CryWallDesktop]::Set($null, $file, 5); return }
     if ($monitor -match '^\d+$') {
         $mons = [CryWallDesktop]::Monitors()
@@ -231,14 +233,15 @@ function Stop-Live([string]$monitor = 'all') {
     }
 }
 
-function Start-Live([string]$id, [string]$title, [string]$monitor) {
+function Start-Live([string]$id, [string]$title, [string]$monitor, [double]$speed = 1) {
     if ($id -notmatch '^(mb|mx|cu)-\d{1,8}$') { throw 'bad_id' }   # cu = made in the studio
     if ($monitor -notmatch '^(all|\d+)$') { $monitor = 'all' }
     Stop-Live $monitor
     $script = Join-Path $Root 'live.ps1'
     $p = Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList @(
-        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-File', "`"$script`"", '-Id', $id, '-Monitor', $monitor)
-    $list = @(Get-LiveStates) + @(@{ pid = $p.Id; id = $id; title = $title; monitor = $monitor })
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-File', "`"$script`"", '-Id', $id, '-Monitor', $monitor,
+        '-Speed', ([Math]::Min(3, [Math]::Max(0.25, $speed))).ToString([Globalization.CultureInfo]::InvariantCulture))
+    $list = @(Get-LiveStates) + @(@{ pid = $p.Id; id = $id; title = $title; monitor = $monitor; speed = $speed })
     Save-LiveStates $list
 }
 
@@ -403,7 +406,8 @@ while ($listener.IsListening) {
         elseif ($path -eq '/api/live/apply' -and $req.HttpMethod -eq 'POST') {
             $b = Read-Body $ctx
             $mon = if ($b.monitor) { [string]$b.monitor } else { 'all' }
-            Start-Live ([string]$b.id) ([string]$b.title) $mon
+            $spd = 1.0; if ($b.speed) { $spd = [double]$b.speed }
+            Start-Live ([string]$b.id) ([string]$b.title) $mon $spd
             Send-Json $ctx @{ ok = $true }
         }
         elseif ($path -eq '/api/live/stop') {

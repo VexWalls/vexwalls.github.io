@@ -2,7 +2,8 @@
 # Plays a looping, muted video behind the desktop icons on the primary monitor.
 # Started/stopped by server.ps1.
 # -Monitor: 'all' or a monitor index (0-based, ordered left to right, same as server.ps1).
-param([Parameter(Mandatory)][string]$Id, [string]$Monitor = 'all')
+param([Parameter(Mandatory)][string]$Id, [string]$Monitor = 'all', [double]$Speed = 1)
+if ($Speed -lt 0.25 -or $Speed -gt 3) { $Speed = 1 }   # playback speed chosen on the site (0.5x … 2x)
 
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -113,6 +114,8 @@ function New-Player($bounds) {
     $me.IsMuted = $true; $me.Stretch = 'UniformToFill'
     $me.Source = New-Object Uri($file)
     $me.Add_MediaEnded({ param($s) $s.Position = [TimeSpan]::Zero; $s.Play() })
+    $sp = $Speed
+    $me.Add_MediaOpened({ param($s) $s.SpeedRatio = $sp }.GetNewClosure())
     $win.Content = $me
 
     $x = $bounds.X - $virtual.X; $y = $bounds.Y - $virtual.Y; $w = $bounds.Width; $h = $bounds.Height

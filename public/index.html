@@ -71,7 +71,7 @@
       <button class="tab is-active" data-mode="static">Duvar Kağıtları</button>
       <button class="tab" data-mode="live"><span class="dot"></span>Hareketli</button>
       <button class="tab" data-mode="pfp">Profil Resimleri</button>
-      <button class="tab tab--make" data-open="maker">✨ Oluştur</button>
+      <button class="tab tab--make" data-open="ai">✨ Yapay Zeka</button>
       <button class="tab" data-mode="fav">Favorilerim</button>
     </nav>
     <div class="themes">
@@ -125,27 +125,18 @@
   <div class="hero__progress"><i></i></div>
 </section>
 
-<!-- AI wallpaper maker, right on the home page (opens the "Oluştur" studio and starts drawing) -->
+<!-- AI wallpapers right on the home page: write anything → 3 pictures to choose from (ai.js) -->
 <section class="aihome" id="aiHome">
   <div class="aihome__in">
     <div class="aihome__text">
       <p class="aihome__tag">✨ Yeni · Yapay zeka</p>
       <h2>Hayal et,<br><em>duvar kağıdın olsun.</em></h2>
-      <p>Ne istediğini yaz, yapay zeka saniyeler içinde sana özel bir duvar kağıdı çizsin. İstersen yazı ekle, kar, yağmur ya da yıldız ekleyip hareketli yap. Ücretsiz.</p>
+      <p>Aklına ne gelirse yaz; yapay zeka senin için <b>3 farklı</b> duvar kağıdı çizsin, beğendiğini seç. İndir, masaüstüne uygula, profil resmi yap ya da hareketli hale getir. Ücretsiz.</p>
     </div>
     <form class="aihome__form" id="aiHomeForm" autocomplete="off">
-      <textarea id="aiHomePrompt" rows="3" maxlength="300" placeholder="Örn: gece yarısı karlı dağlarda yalnız bir samuray, kırmızı ay"></textarea>
-      <div class="aihome__styles" id="aiHomeStyles">
-        <button type="button" class="chip is-active" data-aistyle="">Serbest</button>
-        <button type="button" class="chip" data-aistyle="anime art style, vibrant, detailed background">Anime</button>
-        <button type="button" class="chip" data-aistyle="photorealistic, 8k photography, cinematic lighting">Gerçekçi</button>
-        <button type="button" class="chip" data-aistyle="epic fantasy concept art, dramatic lighting">Fantastik</button>
-        <button type="button" class="chip" data-aistyle="cyberpunk, neon lights, futuristic">Siberpunk</button>
-        <button type="button" class="chip" data-aistyle="minimalist, clean, flat colors">Minimal</button>
-        <button type="button" class="chip" data-aistyle="dark gothic, moody, mysterious">Karanlık</button>
-      </div>
+      <textarea id="aiHomePrompt" rows="3" maxlength="300" placeholder="Hayal et ve yaz… örn: gece yarısı karlı dağlarda yalnız bir samuray, kırmızı ay"></textarea>
       <div class="aihome__row">
-        <button class="btn btn--primary aihome__go" type="submit">✨ Oluştur</button>
+        <button class="btn btn--primary aihome__go" type="submit">✨ 3 resim oluştur</button>
         <div class="aihome__ex"><span>Fikir:</span>
           <button type="button" data-aiex="yağmurlu gecede neon ışıklı bir sokak">Neon sokak</button>
           <button type="button" data-aiex="kozmik bulutların arasında süzülen dev bir balina">Uzay balinası</button>
@@ -153,8 +144,10 @@
           <button type="button" data-aiex="maskeli gizemli bir soytarı, karanlık sahne, dramatik ışık">Gizemli soytarı</button>
         </div>
       </div>
+      <p class="aihome__small">Konu sınırı yok, hayal gücüne kalmış. Sadece +18 ve vahşet içeren istekler çizilmez. <button type="button" data-design>🎨 Yapay zekasız kendin tasarla</button></p>
     </form>
   </div>
+  <div class="aires" id="aiResults" hidden></div>
 </section>
 
 <!-- flowing category strips: speed up / reverse with scrolling -->
@@ -303,6 +296,7 @@
 <script src="settings.js"></script>
 <script src="pfp.js"></script>
 <script src="maker.js"></script>
+<script src="ai.js"></script>
 <script src="app.js"></script>
 <script src="fx.js"></script>
 <script src="pwa.js"></script>

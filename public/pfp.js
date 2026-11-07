@@ -153,3 +153,21 @@
   }
   window.CWPfp = { open, close, isOpen: () => openState };
 })();
+
+/* While a big window is open (wallpaper, profile studio, "Oluştur", AI picture), the mouse wheel
+ * must not scroll the page behind it. Only the window's own scrolling panels may scroll. */
+(function () {
+  const OPEN = '#viewer:not([hidden]), .pfp:not([hidden]), .mk:not([hidden]), .ailb:not([hidden])';
+  const SCROLLERS = '.viewer__side, .viewer__panel, .mk__panel, .pfp__panel';
+  document.addEventListener('wheel', (e) => {
+    if (!document.querySelector(OPEN)) return;
+    const s = e.target.closest && e.target.closest(SCROLLERS);
+    if (s && s.scrollHeight > s.clientHeight + 1) {
+      // let the panel scroll, but not past its ends (that would move the page)
+      const up = e.deltaY < 0, atTop = s.scrollTop <= 0, atEnd = s.scrollTop + s.clientHeight >= s.scrollHeight - 1;
+      if ((up && !atTop) || (!up && !atEnd)) return;
+    }
+    if (e.target.closest && e.target.closest('.pfp__stage')) return;   // the profile cropper zooms with the wheel itself
+    e.preventDefault();
+  }, { passive: false });
+})();

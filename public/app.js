@@ -415,11 +415,13 @@
     try { await api(API + '/api/save', { url: it.full }); addRecent(it); t.set('İndirildi', 'Resimler › VexWalls klasörüne kaydedildi.', 'ok'); }
     catch (e) { t.set('İndirilemedi', serverHint(e), 'err', 6000); }
   }
+  // playback speed of live wallpapers (kept on this device); the preview in the window plays at it too
+  let liveSpeed = (() => { try { return +localStorage.getItem('crywall.liveSpeed') || 1; } catch { return 1; } })();
   async function applyLive(it) {
     const mon = multi() && S.mon !== 'span' ? S.mon : 'all';
     const t = toast('Hareketli duvar kağıdı hazırlanıyor…', 'Video ilk seferde indiriliyor, birkaç saniye sürebilir.', 'wait', 0);
     try {
-      await api(API + '/api/live/apply', { id: it.id, title: it.title, monitor: mon });
+      await api(API + '/api/live/apply', { id: it.id, title: it.title, monitor: mon, speed: liveSpeed });
       addRecent(it);
       t.set('Hareketli duvar kağıdı açıldı' + (multi() ? ` (${monName(mon)})` : ''), 'Masaüstüne geçince görebilirsin.', 'ok', 5000);
       await status();
@@ -883,7 +885,17 @@
       // the sharp image fades in on top of the blurred one (no hard swap)
       const full = el('img', 'main-img full-in'); full.alt = 'Önizleme';
       full.src = heroSrc(it);          // phones: the 1080px picture is plenty for the screen (Kaydet still saves the original)
-      const put = () => { if (wrap.isConnected && !full.isConnected) { wrap.append(full); setTimeout(() => main.remove(), 700); } };
+      const put = () => {
+        if (!wrap.isConnected || full.isConnected) return;
+        wrap.append(full); setTimeout(() => main.remove(), 700);
+        // big screens: the quick 1920 px copy looks soft, so the original follows and takes its place
+        const need = Math.max(screen.width, screen.height) * (devicePixelRatio || 1);
+        if (!IS_PHONE && full.src !== it.full && it.full && Math.max(it.w, it.h) > 2000 && need > 1600) {
+          const hq = el('img', 'main-img full-in'); hq.alt = 'Önizleme'; hq.src = it.full;
+          const swap = () => { if (wrap.isConnected && cur === it) { wrap.append(hq); setTimeout(() => full.remove(), 700); } };
+          hq.decode().then(swap).catch(() => { if (hq.complete && hq.naturalWidth) swap(); else hq.onload = swap; });
+        }
+      };
       full.decode().then(put).catch(() => {            // huge images: decode() may fail although they display
         if (full.complete && full.naturalWidth) return put();
         full.onload = put;
@@ -891,6 +903,7 @@
       });
     } else {
       const v = el('video', 'main-img'); v.src = cur.hd; v.poster = cur.thumb; v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
+      v.addEventListener('loadedmetadata', () => (v.playbackRate = liveSpeed));
       v.onerror = () => { if (v.src !== cur.preview) v.src = cur.preview; };
       wrap.append(v);
     }
@@ -982,10 +995,12 @@
       a.innerHTML = monitorPicker('live') + `
         ${here ? `<button class="btn" data-act="stop" data-stop="${esc(here.monitor)}">${ICON.stop}Bu ekranda durdur</button>`
                : `<button class="btn btn--primary" data-act="live">${ICON.play}Hareketli olarak uygula</button>`}
+        <label class="speedpick"><span>Hız</span><input type="range" min="0.25" max="2" step="0.05" value="${liveSpeed}" data-speedrange style="--p:${((liveSpeed - 0.25) / 1.75) * 100}%"><b>${liveSpeed.toFixed(2).replace('.', ',')}x</b></label>
         <div class="row">${fav}${share}${S.lives.length && !here ? `<button class="btn" data-act="stop" data-stop="all">${ICON.stop}Tümünü durdur</button>` : ''}</div>
         <p class="note">Video, masaüstü simgelerinin arkasında sessiz ve sonsuz döngüde oynar.${multi() ? ' Her ekrana ayrı video koyabilirsin.' : ''} Bilgisayar yeniden başlatılınca normal duvar kağıdına döner.</p>`;
     }
     a.onclick = (e) => {
+      if (e.target.closest('[data-speedrange]')) return;
       const m = e.target.closest('[data-mon]');
       if (m) return setMon(m.dataset.mon);
       const b = e.target.closest('[data-act]'); if (!b) return;
@@ -999,6 +1014,19 @@
       else if (act === 'live') applyLive(it);
       else if (act === 'stop') stopLive();
       else applyImg(it, act);
+    };
+    // live wallpaper speed slider: the preview follows while dragging, the desktop on release
+    a.oninput = (e) => {
+      const r = e.target.closest('[data-speedrange]'); if (!r) return;
+      liveSpeed = +r.value;
+      r.style.setProperty('--p', ((liveSpeed - 0.25) / 1.75) * 100 + '%');
+      r.nextElementSibling.textContent = liveSpeed.toFixed(2).replace('.', ',') + 'x';
+      $$('#vMedia video').forEach((v) => (v.playbackRate = liveSpeed));
+    };
+    a.onchange = (e) => {
+      if (!e.target.closest('[data-speedrange]')) return;
+      try { localStorage.setItem('crywall.liveSpeed', liveSpeed); } catch {}
+      if (S.lives.some((l) => String(l.id) === String(it.id))) applyLive(it);   // already on the desktop: restart at the new speed
     };
   }
 
@@ -1044,7 +1072,8 @@
   // desktop / lock preview
   const mock = $('#mock');
   function openMock(it) {
-    $('#mockScreen').style.backgroundImage = `url("${it.full}"), url("${it.thumb}")`;
+    // sharp right away (our 1920 px copy) and the original on top as soon as it has loaded
+    $('#mockScreen').style.backgroundImage = `url("${it.full}"), url("${it.desk || it.phone || it.thumb}")`;
     const d = new Date();
     $('#mockTime').textContent = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
     $('#mockDate').textContent = d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1076,7 +1105,7 @@
     if (typeof updateIndicators === 'function') requestAnimationFrame(updateIndicators);
     if (doReset) reset('force');
   }
-  $$('.tab').forEach((t) => (t.onclick = () => (t.dataset.open ? window.CWMaker && CWMaker.open() : switchMode(t.dataset.mode))));
+  $$('.tab').forEach((t) => (t.onclick = () => (t.dataset.open === 'ai' ? window.CWAI && CWAI.focus() : t.dataset.open ? window.CWMaker && CWMaker.open() : switchMode(t.dataset.mode))));
   $('[data-home]').onclick = (e) => { e.preventDefault(); S.cat = CATS[0]; S.q = ''; S.colors = ''; S.title = 'Keşfet'; switchMode('static', false); renderCats(); reset(); (window.cwScrollTo ? window.cwScrollTo(0) : scrollTo(0, 0)); };
 
   // "Farklılarını göster": same category, a new random order (instead of refreshing the page)

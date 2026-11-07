@@ -80,7 +80,20 @@
       const dx = (W - dw) * fx, dy = (H - dh) * fy;
       c.drawImage(S.img, 0, 0, iw, ih, dx, dy, dw, dh);
     } else {
+      // no picture yet: a soft placeholder that says what to do (instead of a black box)
+      const acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#26ccea';
       c.fillStyle = '#0b0d14'; c.fillRect(0, 0, W, H);
+      const g = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.6);
+      g.addColorStop(0, acc + '40'); g.addColorStop(1, acc + '00');
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      const fs = Math.min(W, H) / 22;
+      c.fillStyle = 'rgba(255,255,255,.85)'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = `600 ${fs * 1.6}px "Plus Jakarta Sans", sans-serif`;
+      c.fillText(S.bg === 'ai' ? '✨' : '📁', W / 2, H / 2 - fs * 1.6);
+      c.font = `600 ${fs}px "Plus Jakarta Sans", sans-serif`;
+      c.fillText(S.bg === 'ai' ? 'Sağda ne istediğini yaz ve "Oluştur"a bas' : 'Sağdan bir fotoğraf seç', W / 2, H / 2 + fs * 0.4);
+      c.fillStyle = 'rgba(255,255,255,.45)'; c.font = `500 ${fs * 0.62}px "Plus Jakarta Sans", sans-serif`;
+      c.fillText(S.bg === 'ai' ? 'Yapay zeka resmini burada çizecek' : 'Fotoğrafın bilgisayarından çıkmaz', W / 2, H / 2 + fs * 1.6);
     }
   }
 
@@ -186,7 +199,7 @@
     const helper = window.CryWall && window.CryWall.helperBase && window.CryWall.helperBase() !== null;
     return `
       <section><h4>Boyut</h4><div class="mk__chips">${chips('size', SIZES.map((z) => [z[0], `${z[1]} <small>${z[2]}×${z[3]}</small>`]), S.size)}</div></section>
-      <section><h4>Arka plan</h4><div class="mk__chips">${chips('bg', [['gradient', 'Renk geçişi'], ['aurora', 'Aurora'], ['solid', 'Düz renk'], ['photo', 'Fotoğrafım']].concat(AI_URL ? [['ai', '✨ Yapay zeka']] : []), S.bg)}</div>
+      <section><h4>Arka plan</h4><div class="mk__chips">${chips('bg', [['gradient', 'Renk geçişi'], ['aurora', 'Aurora'], ['solid', 'Düz renk'], ['photo', 'Fotoğrafım']], S.bg)}</div>
         <div class="mk__sub" data-show="gradient aurora">
           <div class="mk__colors">${S.colors.map((c, i) => `<input type="color" data-color="${i}" value="${c}" aria-label="Renk ${i + 1}">`).join('')}
             <button type="button" class="btn btn--sm" data-act="random">🎲 Rastgele</button></div>
@@ -235,7 +248,9 @@
     box.querySelectorAll('[data-show]').forEach((n) => { n.hidden = !n.dataset.show.split(' ').includes(S.bg); });
     box.querySelectorAll('[data-act="video"], [data-act="applylive"]').forEach((b) => (b.disabled = S.motion === 'none'));
   }
-  function rerender() { $('.mk__panel', box).innerHTML = panel(); syncShow(); }
+  // filled part of each slider (CSS reads --p)
+  const fillRange = (r) => r.style.setProperty('--p', ((r.value - r.min) / (r.max - r.min)) * 100 + '%');
+  function rerender() { $('.mk__panel', box).innerHTML = panel(); syncShow(); box.querySelectorAll('input[type=range]').forEach(fillRange); }
   const status = (m) => { const s = $('#mkStatus', box); if (s) s.textContent = m || ''; };
 
   function build() {
@@ -245,7 +260,13 @@
       <div class="mk__backdrop" data-mclose></div>
       <div class="mk__win" role="dialog" aria-modal="true" aria-label="Duvar kağıdı oluştur">
         <div class="mk__head"><div><p class="eyebrow">Oluştur</p><h3>Kendi duvar kağıdını yap</h3></div><button class="pfp__close" data-mclose aria-label="Kapat">✕</button></div>
-        <div class="mk__body"><div class="mk__stage"><canvas></canvas><div class="mk__busy" hidden><span></span><b>Yapay zeka çiziyor…</b></div></div><div class="mk__panel"></div></div>
+        <div class="mk__body"><div class="mk__stage"><canvas></canvas><div class="mk__busy" hidden><div class="mk__think">
+          <div class="mk__orb"><i></i><i></i><i></i></div>
+          <b>Yapay zeka düşünüyor…</b>
+          <p class="mk__prompt"></p>
+          <ol class="mk__steps"><li>İsteğin anlaşılıyor</li><li>Türkçeden çevriliyor</li><li>Sahne ve ışık kuruluyor</li><li>Resim çiziliyor</li><li>Detaylar ve son rötuşlar</li></ol>
+          <div class="mk__bar"><i></i></div>
+        </div></div><div class="mk__note" hidden></div></div><div class="mk__panel"></div></div>
       </div>`;
     document.body.append(box);
     cv = $('canvas', box); ctx = cv.getContext('2d');
@@ -272,6 +293,7 @@
       const el = e.target;
       if (el.dataset.color) { S.colors[+el.dataset.color] = el.value; draw(); return; }
       if (el.id === 'mkPrompt') { S.prompt = el.value; return; }
+      if (el.type === 'range') fillRange(el);
       const k = el.dataset.k; if (!k) return;
       S[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.value;
       if (k === 'imgZoom') p.querySelectorAll('[data-k="imgZoom"]').forEach((x) => (x.value = el.value));
@@ -306,15 +328,47 @@
 
   // ---------- AI (our Cloudflare Worker: worker/ai.js, free Workers AI) ----------
   const busyText = (m) => { const b = $('.mk__busy b', box); if (b) b.textContent = m; };
+  // "thinking" screen: steps light up one by one and the bar fills while the picture is drawn
+  let thinkTimer = 0;
+  function think(on, prompt) {
+    const el = $('.mk__busy', box), bar = $('.mk__bar i', box), steps = [...box.querySelectorAll('.mk__steps li')];
+    clearInterval(thinkTimer);
+    if (!on) {
+      bar.style.width = '100%'; steps.forEach((s) => s.className = 'is-done');
+      setTimeout(() => { el.hidden = true; el.classList.remove('is-on'); }, 450);
+      return;
+    }
+    $('.mk__prompt', box).textContent = '“' + prompt + '”';
+    busyText('Yapay zeka düşünüyor…');
+    steps.forEach((s) => (s.className = '')); bar.style.width = '0%';
+    el.hidden = false; requestAnimationFrame(() => el.classList.add('is-on'));
+    const start = performance.now(), names = ['Yapay zeka düşünüyor…', 'İsteğini İngilizceye çeviriyor…', 'Sahneyi kuruyor…', 'Çiziyor…', 'Son rötuşları yapıyor…'];
+    const tick = () => {
+      const s = (performance.now() - start) / 1000;
+      const i = Math.min(steps.length - 1, Math.floor(s / 2.4));
+      steps.forEach((li, n) => (li.className = n < i ? 'is-done' : n === i ? 'is-now' : ''));
+      busyText(names[i]);
+      bar.style.width = (95 * (1 - Math.exp(-s / 6))).toFixed(1) + '%';   // slows down near the end, never "stuck at 100"
+    };
+    tick(); thinkTimer = setInterval(tick, 250);
+  }
+  // messages next to the picture too (the list on the right may be scrolled away)
+  let noteTimer = 0;
+  function note(m, bad) {
+    const n = $('.mk__note', box); if (!n) return;
+    n.textContent = m; n.classList.toggle('is-bad', !!bad); n.hidden = !m;
+    clearTimeout(noteTimer); if (m) noteTimer = setTimeout(() => (n.hidden = true), 7000);
+  }
   async function genAI() {
     const ta = $('#mkPrompt', box), text = (ta ? ta.value : S.prompt).trim();
     S.prompt = text;
-    if (!text) { status('Önce ne istediğini yaz.'); ta?.focus(); return; }
-    if (BLOCK.test(text)) { status('Bu istek oluşturulamaz: telifli karakterler ve uygunsuz içerik yasak. Özgün bir şey dene (örn. "soytarı maskeli gizemli bir karakter").'); return; }
+    if (!text) { note('Önce sağdaki kutuya ne istediğini yaz.', true); ta?.focus(); return; }
+    if (BLOCK.test(text)) { const m = 'Bu istek oluşturulamaz: telifli karakterler ve uygunsuz içerik yasak. Özgün bir şey dene (örn. "soytarı maskeli gizemli bir karakter").'; status(m); note(m, true); return; }
     if (aiBusy) return;
     if (!AI_URL) { status('Yapay zeka çok yakında geliyor.'); return; }
     const [W, H] = sizeOf(), k = Math.min(1, 1920 / Math.max(W, H));
-    aiBusy = true; $('.mk__busy', box).hidden = false; busyText('Yapay zeka çiziyor… (5–30 sn)'); status('');
+    aiBusy = true; think(true, text); status(''); note('');
+    let ok = false;
     try {
       const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 120000);
       let r;
@@ -324,8 +378,8 @@
       } finally { clearTimeout(timer); }
       if (!r.ok || !/^image\//.test(r.headers.get('content-type') || '')) {
         const j = await r.json().catch(() => ({}));
-        if (j.error === 'blocked') return status('Bu istek oluşturulamaz: telifli karakterler ve uygunsuz içerik yasak.');
-        if (j.error === 'quota') return status('Bugünkü ücretsiz yapay zeka hakkı doldu. Yarın tekrar dene.');
+        if (j.error === 'blocked') { const m = 'Bu istek oluşturulamaz: telifli karakterler ve uygunsuz içerik yasak.'; status(m); note(m, true); return; }
+        if (j.error === 'quota') { const m = 'Bugünkü ücretsiz yapay zeka hakkı doldu. Yarın tekrar dene.'; status(m); note(m, true); return; }
         throw new Error(j.error || 'HTTP ' + r.status);
       }
       const im = new Image();
@@ -333,12 +387,18 @@
       await new Promise((res, rej) => { im.onload = res; im.onerror = rej; im.src = URL.createObjectURL(blob); });
       S.img = im; S.imgSrc = 'ai'; S.imgZoom = 1; S.imgX = S.imgY = 0.5;
       if (S.bg !== 'ai') { S.bg = 'ai'; rerender(); }
+      ok = true;
+      think(false);
+      // reveal: the new picture comes out of a blur
+      cv.classList.remove('is-reveal'); void cv.offsetWidth; cv.classList.add('is-reveal');
       draw();
       status('Hazır! Beğenmediysen tekrar "Oluştur"a bas, her seferinde farklı çıkar. Yazı ya da hareket ekleyip indirebilirsin.');
+      note('✨ Hazır! Yazı ya da hareket ekleyip indirebilirsin.');
     } catch (e) {
-      status('Yapay zeka şu an cevap vermedi. Biraz sonra tekrar dene.');
+      const m = 'Yapay zeka şu an cevap vermedi. Biraz sonra tekrar dene.'; status(m); note(m, true);
     } finally {
-      aiBusy = false; $('.mk__busy', box).hidden = true;
+      aiBusy = false;
+      if (!ok) think(false);
     }
   }
 
@@ -426,7 +486,7 @@
       im.onload = () => { S.img = im; S.imgSrc = 'photo'; S.bg = 'photo'; S.imgZoom = 1; S.imgX = S.imgY = 0.5; rerender(); draw(); };
       im.src = opts.src;
     }
-    if (opts.ai) { S.bg = 'ai'; S.prompt = opts.ai; S.style = opts.style || ''; if (S.imgSrc !== 'ai') S.img = null; }   // from the home page box
+    if (opts.motion) { S.motion = opts.motion; }   // "Hareketli yap" from an AI picture
     rerender();
     box.hidden = false; document.body.style.overflow = 'hidden';
     if (!history.state || !history.state.maker) history.pushState({ ...(history.state || {}), maker: true }, '');
@@ -458,7 +518,7 @@
       setTimeout(() => ta.focus({ preventScroll: true }), 600);
     }));
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindHome); else bindHome();
+  // (the home page AI box is run by ai.js now)
   function close(fromHistory = false) {
     if (!box || box.hidden) return;
     box.hidden = true; cancelAnimationFrame(raf); raf = 0;
