@@ -34,6 +34,8 @@
     text: '', font: 'Plus Jakarta Sans', textSize: 90, textColor: '#ffffff', glow: true, tx: 0.5, ty: 0.5, bold: true,
     motion: 'none', speed: 1, style: '', prompt: '',
   };
+  // address of our AI service (worker/ai.js on Cloudflare); empty = AI not set up yet
+  const AI_URL = '';
   const LOOP = 10;                       // seconds; every motion is periodic, so the video loops seamlessly
   let box, cv, ctx, raf = 0, t0 = performance.now(), grainTile = null, aiBusy = false, aiReady = 0;
 
@@ -69,8 +71,7 @@
     } else if (S.bg === 'solid') {
       c.fillStyle = S.solid; c.fillRect(0, 0, W, H);
     } else if (S.img) {
-      // AI pictures: the free service stamps its name in the bottom-right corner, so the bottom strip is left out
-      const iw = S.img.naturalWidth, ih = S.img.naturalHeight * (S.imgSrc === 'ai' ? 0.92 : 1);
+      const iw = S.img.naturalWidth, ih = S.img.naturalHeight;
       let z = S.imgZoom;
       if (S.motion === 'zoom') z *= 1 + 0.07 * (0.5 - 0.5 * Math.cos(ph));
       const sc = Math.max(W / iw, H / ih) * z, dw = iw * sc, dh = ih * sc;
@@ -185,7 +186,7 @@
     const helper = window.CryWall && window.CryWall.helperBase && window.CryWall.helperBase() !== null;
     return `
       <section><h4>Boyut</h4><div class="mk__chips">${chips('size', SIZES.map((z) => [z[0], `${z[1]} <small>${z[2]}×${z[3]}</small>`]), S.size)}</div></section>
-      <section><h4>Arka plan</h4><div class="mk__chips">${chips('bg', [['gradient', 'Renk geçişi'], ['aurora', 'Aurora'], ['solid', 'Düz renk'], ['photo', 'Fotoğrafım'], ['ai', '✨ Yapay zeka']], S.bg)}</div>
+      <section><h4>Arka plan</h4><div class="mk__chips">${chips('bg', [['gradient', 'Renk geçişi'], ['aurora', 'Aurora'], ['solid', 'Düz renk'], ['photo', 'Fotoğrafım']].concat(AI_URL ? [['ai', '✨ Yapay zeka']] : []), S.bg)}</div>
         <div class="mk__sub" data-show="gradient aurora">
           <div class="mk__colors">${S.colors.map((c, i) => `<input type="color" data-color="${i}" value="${c}" aria-label="Renk ${i + 1}">`).join('')}
             <button type="button" class="btn btn--sm" data-act="random">🎲 Rastgele</button></div>
@@ -203,7 +204,7 @@
           <textarea id="mkPrompt" rows="3" maxlength="300" placeholder="Ne istediğini yaz… örn: gece yarısı karlı dağlarda yalnız bir samuray, kırmızı ay">${S.prompt}</textarea>
           <div class="mk__chips mk__chips--sm">${chips('style', STYLES, S.style)}</div>
           <button type="button" class="btn btn--primary" data-act="ai">✨ Oluştur</button>
-          <p class="mk__hint">Ücretsiz yapay zeka (Pollinations). Her seferinde farklı bir resim çıkar, 5–20 saniye sürer. Ücretsiz sürüm resmi yaklaşık 1024 px çizer (büyük ekranda biraz yumuşak görünebilir). Telifli karakterler (Joker, LoL, Pokémon…) ve uygunsuz içerik oluşturulamaz.</p>
+          <p class="mk__hint">Ücretsiz yapay zeka (FLUX). Türkçe yazabilirsin; her seferinde farklı bir resim çıkar, 5–30 saniye sürer. Telifli karakterler (Joker, LoL, Pokémon…) ve uygunsuz içerik oluşturulamaz.</p>
           ${range('imgZoom', 'Yakınlaştır', 1, 3, 0.01)}
         </div>
       </section>
@@ -244,7 +245,7 @@
       <div class="mk__backdrop" data-mclose></div>
       <div class="mk__win" role="dialog" aria-modal="true" aria-label="Duvar kağıdı oluştur">
         <div class="mk__head"><div><p class="eyebrow">Oluştur</p><h3>Kendi duvar kağıdını yap</h3></div><button class="pfp__close" data-mclose aria-label="Kapat">✕</button></div>
-        <div class="mk__body"><div class="mk__stage"><canvas></canvas><div class="mk__busy" hidden><span></span>Yapay zeka çiziyor…</div></div><div class="mk__panel"></div></div>
+        <div class="mk__body"><div class="mk__stage"><canvas></canvas><div class="mk__busy" hidden><span></span><b>Yapay zeka çiziyor…</b></div></div><div class="mk__panel"></div></div>
       </div>`;
     document.body.append(box);
     cv = $('canvas', box); ctx = cv.getContext('2d');
@@ -303,26 +304,42 @@
     document.addEventListener('keydown', (e) => { if (!box.hidden && e.key === 'Escape') { e.stopImmediatePropagation(); close(); } }, true);
   }
 
-  // ---------- AI ----------
-  function genAI() {
+  // ---------- AI (our Cloudflare Worker: worker/ai.js, free Workers AI) ----------
+  const busyText = (m) => { const b = $('.mk__busy b', box); if (b) b.textContent = m; };
+  async function genAI() {
     const ta = $('#mkPrompt', box), text = (ta ? ta.value : S.prompt).trim();
     S.prompt = text;
     if (!text) { status('Önce ne istediğini yaz.'); ta?.focus(); return; }
     if (BLOCK.test(text)) { status('Bu istek oluşturulamaz: telifli karakterler ve uygunsuz içerik yasak. Özgün bir şey dene (örn. "soytarı maskeli gizemli bir karakter").'); return; }
-    const wait = Math.ceil((aiReady - Date.now()) / 1000);
     if (aiBusy) return;
-    if (wait > 0) { status(`Ücretsiz yapay zeka sırası: ${wait} saniye sonra tekrar dene.`); return; }
+    if (!AI_URL) { status('Yapay zeka çok yakında geliyor.'); return; }
     const [W, H] = sizeOf(), k = Math.min(1, 1920 / Math.max(W, H));
-    const w = Math.round(W * k), h = Math.round(H * k / 0.92), seed = Math.floor(Math.random() * 1e9);   // a bit taller: the bottom strip is cut off
-    const full = `${text}${S.style ? ', ' + S.style : ''}, wallpaper, high quality, no text, no watermark, original character`;
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(full)}?width=${w}&height=${h}&seed=${seed}&nologo=true&safe=true&model=flux&referrer=vexwalls.github.io`;
-    aiBusy = true; $('.mk__busy', box).hidden = false; status('');
-    const im = new Image(); im.crossOrigin = 'anonymous';
-    const done = (ok) => { aiBusy = false; aiReady = Date.now() + 15000; $('.mk__busy', box).hidden = true; if (!ok) status('Yapay zeka şu an cevap vermedi. Birkaç saniye sonra tekrar dene.'); };
-    const timer = setTimeout(() => { im.src = ''; done(false); }, 90000);
-    im.onload = () => { clearTimeout(timer); S.img = im; S.imgSrc = 'ai'; S.imgZoom = 1; S.imgX = S.imgY = 0.5; done(true); status('Hazır! Beğenmediysen tekrar "Oluştur"a bas, her seferinde farklı çıkar.'); draw(); };
-    im.onerror = () => { clearTimeout(timer); done(false); };
-    im.src = url;
+    aiBusy = true; $('.mk__busy', box).hidden = false; busyText('Yapay zeka çiziyor… (5–30 sn)'); status('');
+    try {
+      const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 120000);
+      let r;
+      try {
+        r = await fetch(AI_URL, { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: text, style: S.style, width: Math.round(W * k), height: Math.round(H * k) }) });
+      } finally { clearTimeout(timer); }
+      if (!r.ok || !/^image\//.test(r.headers.get('content-type') || '')) {
+        const j = await r.json().catch(() => ({}));
+        if (j.error === 'blocked') return status('Bu istek oluşturulamaz: telifli karakterler ve uygunsuz içerik yasak.');
+        if (j.error === 'quota') return status('Bugünkü ücretsiz yapay zeka hakkı doldu. Yarın tekrar dene.');
+        throw new Error(j.error || 'HTTP ' + r.status);
+      }
+      const im = new Image();
+      const blob = await r.blob();
+      await new Promise((res, rej) => { im.onload = res; im.onerror = rej; im.src = URL.createObjectURL(blob); });
+      S.img = im; S.imgSrc = 'ai'; S.imgZoom = 1; S.imgX = S.imgY = 0.5;
+      if (S.bg !== 'ai') { S.bg = 'ai'; rerender(); }
+      draw();
+      status('Hazır! Beğenmediysen tekrar "Oluştur"a bas, her seferinde farklı çıkar. Yazı ya da hareket ekleyip indirebilirsin.');
+    } catch (e) {
+      status('Yapay zeka şu an cevap vermedi. Biraz sonra tekrar dene.');
+    } finally {
+      aiBusy = false; $('.mk__busy', box).hidden = true;
+    }
   }
 
   // ---------- export ----------
@@ -409,11 +426,39 @@
       im.onload = () => { S.img = im; S.imgSrc = 'photo'; S.bg = 'photo'; S.imgZoom = 1; S.imgX = S.imgY = 0.5; rerender(); draw(); };
       im.src = opts.src;
     }
+    if (opts.ai) { S.bg = 'ai'; S.prompt = opts.ai; S.style = opts.style || ''; if (S.imgSrc !== 'ai') S.img = null; }   // from the home page box
     rerender();
     box.hidden = false; document.body.style.overflow = 'hidden';
     if (!history.state || !history.state.maker) history.pushState({ ...(history.state || {}), maker: true }, '');
-    requestAnimationFrame(() => { fit(); t0 = performance.now(); loop(); });
+    requestAnimationFrame(() => { fit(); t0 = performance.now(); loop(); if (opts.ai) genAI(); });
   }
+
+  // ---------- home page AI box ----------
+  function bindHome() {
+    const form = document.getElementById('aiHomeForm'); if (!form) return;
+    if (!AI_URL) { document.getElementById('aiHome').hidden = true; document.querySelectorAll('[data-aiscroll]').forEach((b) => (b.hidden = true)); return; }   // AI not set up yet
+    const ta = document.getElementById('aiHomePrompt');
+    let style = '';
+    form.addEventListener('click', (e) => {
+      const s = e.target.closest('[data-aistyle]');
+      if (s) { style = s.dataset.aistyle; form.querySelectorAll('[data-aistyle]').forEach((x) => x.classList.toggle('is-active', x === s)); return; }
+      const ex = e.target.closest('[data-aiex]');
+      if (ex) { ta.value = ex.dataset.aiex; ta.focus(); }
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = ta.value.trim();
+      if (!text) { ta.focus(); ta.classList.add('is-shake'); setTimeout(() => ta.classList.remove('is-shake'), 500); return; }
+      open({ ai: text, style });
+    });
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
+    document.querySelectorAll('[data-aiscroll]').forEach((b) => b.addEventListener('click', () => {
+      const top = document.getElementById('aiHome').getBoundingClientRect().top + scrollY - 90;
+      (window.cwScrollTo ? window.cwScrollTo(top) : scrollTo(0, top));
+      setTimeout(() => ta.focus({ preventScroll: true }), 600);
+    }));
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindHome); else bindHome();
   function close(fromHistory = false) {
     if (!box || box.hidden) return;
     box.hidden = true; cancelAnimationFrame(raf); raf = 0;
