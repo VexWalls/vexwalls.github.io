@@ -101,7 +101,23 @@
     const w = window.open(url, '_blank'); if (w) w.opener = null;
     const m = document.createElement('div'); m.className = 'aimsg';
     m.innerHTML = `<p class="aimsg__you">${esc(text)}</p><div class="aimsg__ai"><small>✓ İsteğin hazır. ChatGPT yeni sekmede ${w ? 'açıldı' : 'açılacak'}; resim orada çizilecek, beğenirsen oradan indir.</small>
-      <a class="aimsg__open" href="${url}" target="_blank" rel="noopener">ChatGPT'yi aç ↗</a></div>`;
+      <a class="aimsg__open" href="${url}" target="_blank" rel="noopener">ChatGPT'yi aç ↗</a>
+      ${dropHtml()}</div>`;
+    list.append(m); list.scrollTop = list.scrollHeight;
+  }
+
+  // ---------- bring the ChatGPT picture back: drop / choose / paste ----------
+  const dropHtml = () => `<label class="aidrop"><input type="file" accept="image/*" hidden>
+      <b>ChatGPT'den indirdiğin resmi buraya bırak</b><span>ya da tıklayıp seç · ChatGPT'de "kopyala" deyip burada Ctrl+V</span></label>`;
+  function addOwn(file) {
+    if (!file || !/^image\//.test(file.type)) return;
+    const url = URL.createObjectURL(file);
+    const m = document.createElement('div'); m.className = 'aimsg';
+    m.innerHTML = `<div class="aimsg__ai"><small>Resmin burada. Tıkla: indir, masaüstüne uygula, profil resmi, hareketli yap ya da yazı ekle.</small><div class="aimsg__grid aimsg__grid--one"></div></div>`;
+    const c = card(); c.dataset.url = url; c.dataset.type = file.type;
+    const img = $('img', c); img.onload = () => { c.classList.remove('is-thinking'); c.classList.add('is-ready'); c.style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight; };
+    img.src = url;
+    $('.aimsg__grid', m).append(c);
     list.append(m); list.scrollTop = list.scrollHeight;
   }
 
@@ -127,6 +143,7 @@
       } catch (e) { toast('Uygulanamadı', e.message, 'err'); }
       return;
     }
+    if (a === 'edit') { lb.hidden = true; return window.CWMaker && CWMaker.open({ src: url }); }
     if (a === 'pfp') { lb.hidden = true; return window.CWPfp && CWPfp.open(url, { id: 'ai' }); }
     if (a === 'live') { lb.hidden = true; return window.CWMaker && CWMaker.open({ src: url, motion: 'zoom' }); }
   }
@@ -148,6 +165,7 @@
           ${helper() ? '<button type="button" data-a="apply">Masaüstüne uygula</button>' : ''}
           <button type="button" data-a="pfp">Profil resmi yap</button>
           <button type="button" data-a="live">Hareketli yap</button>
+          <button type="button" data-a="edit">Yazı ekle / düzenle</button>
         </div>`;
       document.body.append(lb);
       lb.addEventListener('click', (e) => {
@@ -172,7 +190,7 @@
     pop.className = 'aipop'; pop.hidden = true;
     pop.innerHTML = `
       <div class="aipop__head"><b>${ICON}Yapay zeka</b><button type="button" class="aipop__x" aria-label="Kapat">✕</button></div>
-      <div class="aipop__list"><p class="aipop__hi">Ne istersen yaz. Resmin <b>ChatGPT</b>'de çizilir: isteğin hazır yazılmış olarak <b>yeni sekmede ChatGPT açılır</b>, resmi oradan indirirsin (ücretsiz ChatGPT hesabın yeter).</p></div>
+      <div class="aipop__list"><p class="aipop__hi">Ne istersen yaz. Resmin <b>ChatGPT</b>'de çizilir: isteğin hazır yazılmış olarak <b>yeni sekmede ChatGPT açılır</b>, resmi oradan indirirsin (ücretsiz ChatGPT hesabın yeter).</p>${dropHtml()}</div>
       <form class="aipop__form" autocomplete="off">
         <textarea rows="2" maxlength="300" placeholder="Hayal et ve yaz…"></textarea>
         <button class="btn btn--primary" type="submit">ChatGPT'de çiz ↗</button>
@@ -201,6 +219,15 @@
     $('.aipop__local', pop).onclick = () => { const text = take(); if (text) generate(text); };
     ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('form', pop).requestSubmit(); } });
     list.addEventListener('click', (e) => { const c = e.target.closest('.aithumb.is-ready'); if (c) view(c); });
+    // own picture (from ChatGPT): choose, drop anywhere on the box, or paste
+    pop.addEventListener('change', (e) => { if (e.target.type === 'file' && e.target.files[0]) { addOwn(e.target.files[0]); e.target.value = ''; } });
+    pop.addEventListener('dragover', (e) => { e.preventDefault(); pop.classList.add('is-drag'); });
+    pop.addEventListener('dragleave', (e) => { if (!pop.contains(e.relatedTarget)) pop.classList.remove('is-drag'); });
+    pop.addEventListener('drop', (e) => { e.preventDefault(); pop.classList.remove('is-drag'); [...(e.dataTransfer.files || [])].forEach(addOwn); });
+    pop.addEventListener('paste', (e) => {
+      const f = [...(e.clipboardData && e.clipboardData.files || [])].find((x) => /^image\//.test(x.type));
+      if (f) { e.preventDefault(); addOwn(f); }
+    });
     document.addEventListener('keydown', (e) => { if (!pop.hidden && e.key === 'Escape' && (!lb || lb.hidden)) toggle(false); });
   }
   function toggle(on = pop.hidden) {
