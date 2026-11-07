@@ -35,7 +35,7 @@
     motion: 'none', speed: 1, style: '', prompt: '',
   };
   // address of our AI service (worker/ai.js on Cloudflare); empty = AI not set up yet
-  const AI_URL = '';
+  const AI_URL = 'https://vexwalls-ai.yigithantalhas.workers.dev/';
   const LOOP = 10;                       // seconds; every motion is periodic, so the video loops seamlessly
   let box, cv, ctx, raf = 0, t0 = performance.now(), grainTile = null, aiBusy = false, aiReady = 0;
 
@@ -204,7 +204,7 @@
           <textarea id="mkPrompt" rows="3" maxlength="300" placeholder="Ne istediğini yaz… örn: gece yarısı karlı dağlarda yalnız bir samuray, kırmızı ay">${S.prompt}</textarea>
           <div class="mk__chips mk__chips--sm">${chips('style', STYLES, S.style)}</div>
           <button type="button" class="btn btn--primary" data-act="ai">✨ Oluştur</button>
-          <p class="mk__hint">Ücretsiz yapay zeka (FLUX). Türkçe yazabilirsin; her seferinde farklı bir resim çıkar, 5–30 saniye sürer. Telifli karakterler (Joker, LoL, Pokémon…) ve uygunsuz içerik oluşturulamaz.</p>
+          <p class="mk__hint">Ücretsiz yapay zeka. Türkçe yazabilirsin; her seferinde farklı bir resim çıkar, 5–30 saniye sürer. Telifli karakterler (Joker, LoL, Pokémon…) ve uygunsuz içerik oluşturulamaz.</p>
           ${range('imgZoom', 'Yakınlaştır', 1, 3, 0.01)}
         </div>
       </section>
