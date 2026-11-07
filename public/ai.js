@@ -102,7 +102,10 @@
       } finally { stop(); }
     }));
     busy = false; $('#aiHomeForm .aihome__go').disabled = false;
-    if (blocked) toast('Bu istek oluşturulamaz', '+18 ve vahşet içeren resimler yasak. Başka bir şey hayal et.', 'err');
+    // nothing drawn: no empty cards left on the page, just a short message
+    batch.querySelectorAll('.aicard.is-failed').forEach((c) => c.remove());
+    if (!okCount) { batch.remove(); if (!res.children.length) res.hidden = true; }
+    if (blocked) toast('Bu isteğe izin verilmiyor', 'Başka bir şey dene.', 'err');
     else if (quota) toast('Bugünkü ücretsiz yapay zeka hakkı doldu', 'Yarın tekrar dene.', 'err');
     else if (!okCount) toast('Yapay zeka şu an cevap vermedi', 'Biraz sonra tekrar dene.', 'err');
   }
@@ -180,7 +183,7 @@
       e.preventDefault();
       const text = ta.value.trim();
       if (!text) { ta.focus(); ta.classList.add('is-shake'); setTimeout(() => ta.classList.remove('is-shake'), 500); return; }
-      if (BLOCK.test(text)) return toast('Bu istek oluşturulamaz', '+18 ve vahşet içeren resimler yasak. Başka bir şey hayal et.', 'err');
+      if (BLOCK.test(text)) return toast('Bu isteğe izin verilmiyor', 'Başka bir şey dene.', 'err');
       generate(text);
     });
     ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
