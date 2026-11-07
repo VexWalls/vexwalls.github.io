@@ -192,7 +192,7 @@
       <div class="aipop__head"><b>${ICON}Yapay zeka</b><button type="button" class="aipop__x" aria-label="Kapat">✕</button></div>
       <div class="aipop__list"><p class="aipop__hi">Ne istersen yaz. Resmin <b>ChatGPT</b>'de çizilir: isteğin hazır yazılmış olarak <b>yeni sekmede ChatGPT açılır</b>, resmi oradan indirirsin (ücretsiz ChatGPT hesabın yeter).</p>${dropHtml()}</div>
       <form class="aipop__form" autocomplete="off">
-        <textarea rows="2" maxlength="300" placeholder="Hayal et ve yaz…"></textarea>
+        <textarea rows="2" maxlength="300"></textarea>
         <button class="btn btn--primary" type="submit">ChatGPT'de çiz ↗</button>
       </form>
       <button type="button" class="aipop__local">ya da burada hızlıca çiz (ücretsiz, daha düşük kalite)</button>`;
