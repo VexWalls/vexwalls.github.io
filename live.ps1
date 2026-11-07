@@ -25,6 +25,7 @@ public static class CryWallDesk {
     [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint f);
     [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int i);
     [DllImport("user32.dll")] static extern int SetWindowLong(IntPtr h, int i, int v);
+    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr ctx);
     // Real pixel coordinates on every monitor, even with different scaling per monitor.
@@ -33,7 +34,8 @@ public static class CryWallDesk {
         SetProcessDPIAware();
     }
 
-    public static string Attach(IntPtr hwnd, int x, int y, int w, int h) {
+    // hideWall: the video covers every monitor, so the picture layer can be hidden
+    public static string Attach(IntPtr hwnd, int x, int y, int w, int h, bool hideWall) {
         IntPtr progman = FindWindow("Progman", null);
         IntPtr r;
         // Ask Explorer to create the WorkerW layer behind the icons.
@@ -45,12 +47,16 @@ public static class CryWallDesk {
         SetWindowLong(hwnd, -16, (style | 0x40000000) & ~unchecked((int)0x80000000));
 
         IntPtr childWorker = FindWindowEx(progman, IntPtr.Zero, "WorkerW", null);
-        if (childWorker != IntPtr.Zero) {
-            // Windows 11 24H2+: icons (SHELLDLL_DefView) and WorkerW are children of Progman.
-            IntPtr defView = FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", null);
-            SetParent(hwnd, progman);
-            SetWindowPos(hwnd, defView, x, y, w, h, 0x0010 | 0x0040); // just below the icons
-            return "progman";
+        IntPtr defView = FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", null);
+        if (childWorker != IntPtr.Zero && defView != IntPtr.Zero) {
+            // Windows 11 24H2+: icons (SHELLDLL_DefView) and the picture layer (WorkerW) are both
+            // children of Progman, and a window placed between them is never drawn. What works:
+            // put the video inside the icon layer, under the icon list, and hide the picture layer
+            // (it is drawn half-transparent on top otherwise). server.ps1 shows it again on stop.
+            SetParent(hwnd, defView);
+            SetWindowPos(hwnd, new IntPtr(1), x, y, w, h, 0x0010 | 0x0040);   // HWND_BOTTOM: under the icons
+            if (hideWall) ShowWindow(childWorker, 0);
+            return "defview";
         }
         // Older Windows: WorkerW is the top-level sibling after the window holding the icons.
         IntPtr worker = IntPtr.Zero;
@@ -87,6 +93,7 @@ if (-not (Test-Path $file)) {
 
 $virtual = [System.Windows.Forms.SystemInformation]::VirtualScreen
 $screens = @([System.Windows.Forms.Screen]::AllScreens | Sort-Object { $_.Bounds.X }, { $_.Bounds.Y })
+$hideWall = ($Monitor -eq 'all') -or ($screens.Count -eq 1)
 if ($Monitor -ne 'all') {
     $i = [int]$Monitor
     if ($i -ge $screens.Count) { exit 3 }
@@ -111,7 +118,7 @@ function New-Player($bounds) {
     $win.Add_Loaded({
         param($s)
         $hwnd = (New-Object System.Windows.Interop.WindowInteropHelper($s)).Handle
-        [void][CryWallDesk]::Attach($hwnd, $x, $y, $w, $h)
+        [void][CryWallDesk]::Attach($hwnd, $x, $y, $w, $h, $hideWall)
         $s.Content.Play()
     }.GetNewClosure())
     return $win

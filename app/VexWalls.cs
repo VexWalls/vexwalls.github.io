@@ -20,8 +20,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("VexWalls — ücretsiz 4K ve hareketli duvar kağıtları")]
 [assembly: AssemblyCompany("VexWalls")]
 [assembly: AssemblyCopyright("© 2026 VexWalls")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 static class VexWallsApp
 {
@@ -38,7 +38,7 @@ static class VexWallsApp
         {
             string exe = Assembly.GetExecutingAssembly().Location;
             if (args.Length > 0 && args[0] == "--uninstall") { Uninstall(); return 0; }
-            if (args.Length > 0 && args[0] == "--version") { Console.WriteLine("VexWalls 1.0"); return 0; }
+            if (args.Length > 0 && args[0] == "--version") { Console.WriteLine("VexWalls 1.1"); return 0; }
 
             bool installed = string.Equals(Path.GetDirectoryName(exe), InstallDir, StringComparison.OrdinalIgnoreCase);
             if (!installed)
@@ -82,7 +82,7 @@ static class VexWallsApp
         using (RegistryKey k = Registry.CurrentUser.CreateSubKey(UninstallKey))
         {
             k.SetValue("DisplayName", "VexWalls");
-            k.SetValue("DisplayVersion", "1.0");
+            k.SetValue("DisplayVersion", "1.1");
             k.SetValue("Publisher", "VexWalls");
             k.SetValue("DisplayIcon", ico);
             k.SetValue("InstallLocation", InstallDir);

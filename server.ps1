@@ -23,6 +23,15 @@ using System.Collections.Generic;
 public static class CryWallNative {
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string n);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr p, IntPtr after, string c, string n);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
+    // live.ps1 hides the picture layer (Windows 11 24H2+) while a video plays: show it again
+    public static void ShowPictureLayer() {
+        IntPtr pm = FindWindow("Progman", null);
+        IntPtr w = FindWindowEx(pm, IntPtr.Zero, "WorkerW", null);
+        if (w != IntPtr.Zero) ShowWindow(w, 8);
+    }
 }
 [StructLayout(LayoutKind.Sequential)] public struct WRect { public int Left, Top, Right, Bottom; }
 [ComImport, Guid("B92B56A9-8B55-4E14-9A89-0199BBB6F93B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -200,7 +209,10 @@ function Stop-Live([string]$monitor = 'all') {
         } else { $keep += $s }
     }
     Save-LiveStates $keep
-    if ($stopped) { try { [CryWallDesktop]::Refresh() } catch {} }
+    if ($stopped) {
+        if (-not $keep.Count) { try { [CryWallNative]::ShowPictureLayer() } catch {} }
+        try { [CryWallDesktop]::Refresh() } catch {}
+    }
 }
 
 function Start-Live([string]$id, [string]$title, [string]$monitor) {
