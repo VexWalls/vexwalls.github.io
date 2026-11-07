@@ -270,6 +270,8 @@ function Stop-Rotate {
     Remove-Item $RotPid -ErrorAction SilentlyContinue
 }
 if ((Get-RotateCfg).on) { Start-Rotate }      # keep rotating after a restart / Windows login
+# a video player that crashed can leave the picture layer hidden (black desktop): bring it back
+if (-not @(Get-LiveStates).Count) { try { [CryWallNative]::ShowPictureLayer() } catch {} }
 
 $Mime = @{ '.html' = 'text/html; charset=utf-8'; '.css' = 'text/css; charset=utf-8'; '.js' = 'application/javascript; charset=utf-8'
            '.svg' = 'image/svg+xml'; '.png' = 'image/png'; '.jpg' = 'image/jpeg'; '.ico' = 'image/x-icon'; '.json' = 'application/json'; '.webmanifest' = 'application/manifest+json'; '.webp' = 'image/webp' }
