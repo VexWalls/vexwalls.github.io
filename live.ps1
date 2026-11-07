@@ -6,7 +6,7 @@ param([Parameter(Mandatory)][string]$Id, [string]$Monitor = 'all')
 
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-if ($Id -notmatch '^(mb|mx)-(\d{1,8})$') { exit 1 }
+if ($Id -notmatch '^(mb|mx|cu)-(\d{1,8})$') { exit 1 }   # cu = own video made in the studio (already on disk)
 $Src = $Matches[1]; $Num = $Matches[2]
 if ($Monitor -notmatch '^(all|\d+)$') { $Monitor = 'all' }
 
@@ -78,6 +78,7 @@ public static class CryWallDesk {
 $dir = Join-Path $env:LOCALAPPDATA 'CryWall\Hareketli'   # local, so big videos don't sync to OneDrive
 New-Item -ItemType Directory -Force $dir | Out-Null
 $file = Join-Path $dir "$Id.mp4"
+if ($Src -eq 'cu' -and -not (Test-Path $file)) { exit 2 }
 if (-not (Test-Path $file)) {
     $urls = if ($Src -eq 'mb') { @("https://motionbgs.com/dl/hd/$Num/") }
             else { @("https://assets.mixkit.co/videos/$Num/$Num-1080.mp4", "https://assets.mixkit.co/videos/$Num/$Num-720.mp4") }

@@ -34,6 +34,7 @@
   <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="settings.css">
   <link rel="stylesheet" href="pfp.css">
+  <link rel="stylesheet" href="maker.css">
   <script>/* apply light/dark before the page paints (no flash) */try{var p=JSON.parse(localStorage.getItem("crywall.prefs")||"{}");var l=p.mode==="light"||(p.mode==="system"&&matchMedia("(prefers-color-scheme: light)").matches);document.documentElement.dataset.mode=l?"light":"dark";if(p.calm)document.documentElement.classList.add("calm")}catch(e){}</script>
 </head>
 <body>
@@ -70,6 +71,7 @@
       <button class="tab is-active" data-mode="static">Duvar Kağıtları</button>
       <button class="tab" data-mode="live"><span class="dot"></span>Hareketli</button>
       <button class="tab" data-mode="pfp">Profil Resimleri</button>
+      <button class="tab tab--make" data-open="maker">✨ Oluştur</button>
       <button class="tab" data-mode="fav">Favorilerim</button>
     </nav>
     <div class="themes">
@@ -267,6 +269,7 @@
 <script src="i18n.js"></script>
 <script src="settings.js"></script>
 <script src="pfp.js"></script>
+<script src="maker.js"></script>
 <script src="app.js"></script>
 <script src="fx.js"></script>
 <script src="pwa.js"></script>

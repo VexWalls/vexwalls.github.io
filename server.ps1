@@ -127,6 +127,22 @@ function Read-Body($ctx) {
     if ($t) { return $t | ConvertFrom-Json } else { return $null }
 }
 
+# Raw upload from the "Oluştur" studio (a picture or a video the visitor made in the browser).
+function Read-Upload($ctx, [long]$max) {
+    $len = $ctx.Request.ContentLength64
+    if ($len -le 0 -or $len -gt $max) { throw 'too_big' }
+    $ms = New-Object IO.MemoryStream
+    $ctx.Request.InputStream.CopyTo($ms)
+    if ($ms.Length -gt $max) { throw 'too_big' }
+    return $ms.ToArray()
+}
+function Get-UploadKind([byte[]]$b) {
+    if ($b.Length -gt 8 -and $b[0] -eq 0x89 -and $b[1] -eq 0x50 -and $b[2] -eq 0x4E -and $b[3] -eq 0x47) { return 'png' }
+    if ($b.Length -gt 3 -and $b[0] -eq 0xFF -and $b[1] -eq 0xD8 -and $b[2] -eq 0xFF) { return 'jpg' }
+    if ($b.Length -gt 12 -and [Text.Encoding]::ASCII.GetString($b, 4, 4) -eq 'ftyp') { return 'mp4' }
+    return ''
+}
+
 function Test-AllowedImageUrl([string]$u) {
     return $u -match '^https://w\.wallhaven\.cc/full/[a-z0-9]{2}/wallhaven-[a-z0-9]+\.(jpg|png)$'
 }
@@ -216,7 +232,7 @@ function Stop-Live([string]$monitor = 'all') {
 }
 
 function Start-Live([string]$id, [string]$title, [string]$monitor) {
-    if ($id -notmatch '^(mb|mx)-\d{1,8}$') { throw 'bad_id' }
+    if ($id -notmatch '^(mb|mx|cu)-\d{1,8}$') { throw 'bad_id' }   # cu = made in the studio
     if ($monitor -notmatch '^(all|\d+)$') { $monitor = 'all' }
     Stop-Live $monitor
     $script = Join-Path $Root 'live.ps1'
@@ -301,7 +317,7 @@ while ($listener.IsListening) {
         continue
     }
     # Changing THIS computer (apply / live / folder) is only allowed from this computer itself.
-    $pcOnly = '/api/apply', '/api/save', '/api/open-folder', '/api/live/apply', '/api/live/stop', '/api/rotate'
+    $pcOnly = '/api/apply', '/api/save', '/api/open-folder', '/api/live/apply', '/api/live/stop', '/api/rotate', '/api/upload/apply', '/api/upload/live'
     if ($path -in $pcOnly -and -not $req.IsLocal) {
         try { Send-Json $ctx @{ ok = $false; error = 'pc_only' } 403 } catch {}
         continue
@@ -342,6 +358,32 @@ while ($listener.IsListening) {
                 try { Set-LockScreen $file; $out.lock = 'ok' } catch { $out.lock = 'fail'; $out.lockError = $_.Exception.Message }
             }
             Send-Json $ctx $out
+        }
+        elseif ($path -eq '/api/upload/apply' -and $req.HttpMethod -eq 'POST') {
+            # own wallpaper from the studio: PNG/JPG bytes, saved to Pictures\VexWalls and applied
+            $bytes = Read-Upload $ctx 60MB
+            $kind = Get-UploadKind $bytes
+            if ($kind -notin 'png', 'jpg') { throw 'bad_file' }
+            $file = Join-Path $SaveDir ('vexwalls-ozel-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".$kind")
+            [IO.File]::WriteAllBytes($file, $bytes)
+            $target = [string]$req.QueryString['target']; if ($target -notin 'desktop', 'lock', 'both') { $target = 'desktop' }
+            $mon = [string]$req.QueryString['monitor']; if ($mon -notmatch '^(all|span|\d+)$') { $mon = 'all' }
+            $out = @{ ok = $true; file = $file; lock = $null }
+            if ($target -in 'desktop', 'both') { Stop-Live $mon; Set-Desktop $file $mon }
+            if ($target -in 'lock', 'both') { try { Set-LockScreen $file; $out.lock = 'ok' } catch { $out.lock = 'fail' } }
+            Send-Json $ctx $out
+        }
+        elseif ($path -eq '/api/upload/live' -and $req.HttpMethod -eq 'POST') {
+            # own animated wallpaper from the studio: MP4 bytes -> played like the other live wallpapers
+            $bytes = Read-Upload $ctx 150MB
+            if ((Get-UploadKind $bytes) -ne 'mp4') { throw 'bad_file' }
+            $dir = Join-Path $env:LOCALAPPDATA 'CryWall\Hareketli'
+            New-Item -ItemType Directory -Force $dir | Out-Null
+            $id = 'cu-' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() % 100000000
+            [IO.File]::WriteAllBytes((Join-Path $dir "$id.mp4"), $bytes)
+            $mon = [string]$req.QueryString['monitor']; if ($mon -notmatch '^(all|\d+)$') { $mon = 'all' }
+            Start-Live $id 'Kendi hareketli duvar kağıdım' $mon
+            Send-Json $ctx @{ ok = $true; id = $id }
         }
         elseif ($path -eq '/api/save' -and $req.HttpMethod -eq 'POST') {
             $b = Read-Body $ctx

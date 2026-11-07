@@ -514,6 +514,7 @@
   }
   addEventListener('popstate', (e) => {
     // phone Back button / swipe: first closes the profile-picture studio, then an open wallpaper page
+    if (window.CWMaker && CWMaker.isOpen()) { CWMaker.close(true); return; }
     if (window.CWPfp && CWPfp.isOpen()) { CWPfp.close(true); return; }
     if (!viewer.hidden) { closeViewer(true); return; }
     const st = e.state; if (!st || st.viewer) return;
@@ -928,12 +929,13 @@
     // profile picture from this wallpaper (needs our own preview copy so the browser may crop it)
     const pfpSrc = it.kind === 'img' && (it.desk || it.phone) ? SITE + (it.desk || it.phone) : '';
     const pfpBtn = pfpSrc ? `<button class="btn" data-act="pfp">${ICON.user}Profil resmi yap</button>` : '';
+    const editBtn = pfpSrc ? `<button class="btn" data-act="edit">✏️ Düzenle / yazı ekle</button>` : '';
     if (PHONE_MODE) {
       // phones: a website can't set the wallpaper itself, so save it and show how
       a.innerHTML = it.kind === 'img' ? `
         <button class="btn btn--primary" data-act="phone">${ICON.down}${SAVE_LABEL}</button>
         <div class="row">${fav}${share}</div>
-        ${pfpBtn}
+        <div class="row">${pfpBtn}${editBtn}</div>
         <p class="note">${IS_PHONE ? '' : '<b>Windows:</b> İndir › resme sağ tıkla › "Masaüstü arka planı olarak ayarla".<br><b>Telefonda:</b> '}<b>Duvar kağıdı yapmak için:</b><br>
           <b>iPhone:</b> Kaydet › "Görüntüyü Kaydet" › Fotoğraflar'da aç › Paylaş › "Duvar Kağıdı olarak kullan".<br>
           <b>Android:</b> Kaydet › Galeri'de aç › ⋮ › "Duvar kağıdı olarak ayarla" (ana ekran / kilit ekranı).</p>`
@@ -957,6 +959,7 @@
         else if (b.dataset.act === 'phone') savePhone(it);
         else if (b.dataset.act === 'share') shareIt(it);
         else if (b.dataset.act === 'pfp') CWPfp.open(pfpSrc, { id: it.id, page: it.page });
+        else if (b.dataset.act === 'edit') CWMaker.open({ src: pfpSrc });
         else if (b.dataset.act === 'connect') connectHelper();
       };
       return;
@@ -970,6 +973,7 @@
         </div>
         <div class="row"><button class="btn" data-act="save">${ICON.down}İndir</button>${fav}</div>
         <div class="row">${share}${pfpBtn}</div>
+        ${editBtn}
         <p class="note">Görsel orijinal kalitede indirilir ve ekranını dolduracak şekilde ayarlanır.</p>`;
     } else {
       if (S.mon === 'span') S.mon = 'all';
@@ -989,6 +993,7 @@
       const act = b.dataset.act;
       if (act === 'fav') { toggleFav(it); renderActions(it); }
       else if (act === 'pfp') CWPfp.open(pfpSrc, { id: it.id, page: it.page });
+      else if (act === 'edit') CWMaker.open({ src: pfpSrc });
       else if (act === 'save') saveImg(it);
       else if (act === 'share') shareIt(it);
       else if (act === 'live') applyLive(it);
@@ -1071,7 +1076,7 @@
     if (typeof updateIndicators === 'function') requestAnimationFrame(updateIndicators);
     if (doReset) reset('force');
   }
-  $$('.tab').forEach((t) => (t.onclick = () => switchMode(t.dataset.mode)));
+  $$('.tab').forEach((t) => (t.onclick = () => (t.dataset.open ? window.CWMaker && CWMaker.open() : switchMode(t.dataset.mode))));
   $('[data-home]').onclick = (e) => { e.preventDefault(); S.cat = CATS[0]; S.q = ''; S.colors = ''; S.title = 'Keşfet'; switchMode('static', false); renderCats(); reset(); (window.cwScrollTo ? window.cwScrollTo(0) : scrollTo(0, 0)); };
 
   // "Farklılarını göster": same category, a new random order (instead of refreshing the page)
@@ -1375,6 +1380,7 @@
     if (startMode) setTimeout(() => reset('force'), 60); else reset();
     // (hero already started above)
     openShared();               // ?w=<id> / ?v=<id> share links
+    if (new URLSearchParams(location.search).get('m') === 'make') window.CWMaker?.open();   // ?m=make opens the studio
     status();
   })();
 })();
