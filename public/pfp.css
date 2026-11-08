@@ -151,3 +151,11 @@ body:has(#viewer:not([hidden])) .aipop, body:has(.pfp:not([hidden])) .aipop, bod
 .mock__taskbar .mock__apps i { width: 40px !important; height: 40px; aspect-ratio: auto; background: transparent !important; }
 .mock__taskbar .mock__apps .tb-search { width: auto !important; height: 34px; background: rgba(255,255,255,.08) !important; }
 html:has(.mock:not([hidden])) { overflow: hidden; }
+
+/* "Hareketli duvar kağıdı açık" bar: small pill in the bottom-left corner instead of the middle of the page */
+.livebar { top: auto !important; bottom: 24px !important; left: 24px !important; right: auto !important; transform: none !important; width: auto !important;
+  max-width: min(420px, calc(100vw - 120px)); padding: 6px 6px 6px 14px !important; gap: 10px !important; font-size: 13px !important; border-radius: 999px !important; }
+.livebar > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.livebar #liveBarTitle { font-weight: 600; }
+.livebar .btn, .livebar button { padding: 5px 12px !important; font-size: 12.5px !important; }
+@media (max-width: 600px) { .livebar { left: 12px !important; bottom: 14px !important; max-width: calc(100vw - 90px); } }
