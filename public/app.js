@@ -589,7 +589,7 @@
     remember();
     setTimeout(() => window.__cwUpdateBack && window.__cwUpdateBack(), 0);
     S.token++; S.page = 1; S.done = false; S.seed = ''; S.items = []; S.loading = false; S.all = null; S.rpage = 0; S.qMode = '';
-    const sb = $('#shuffleBtn'); if (sb) sb.hidden = S.mode === 'fav' || S.mode === 'recent';
+    const ls = $('#leaveSearch'); if (ls) ls.hidden = !(S.mode === 'static' && (S.q || S.colors));   // back out of a search
     grid.innerHTML = ''; $('#empty').hidden = true; $('#gridCount').textContent = '';
     grid.classList.toggle('is-portrait', S.mode === 'static' && S.ratio === 'portrait');
     grid.classList.toggle('is-pfp', S.mode === 'pfp');
@@ -1219,7 +1219,7 @@
   $('[data-home]').onclick = (e) => { e.preventDefault(); S.cat = CATS[0]; S.q = ''; S.colors = ''; S.title = 'Keşfet'; switchMode('static', false); renderCats(); reset(); (window.cwScrollTo ? window.cwScrollTo(0) : scrollTo(0, 0)); };
 
   // "Farklılarını göster": same category, a new random order (instead of refreshing the page)
-  // ("Farklılarını göster" removed at the owner's request: "Daha fazla göster" below the cards is enough)
+  $('#leaveSearch').onclick = () => $('.tab[data-mode=static]').click();   // same as the Duvar Kağıtları tab: back to Keşfet
   $$('#sortSeg button').forEach((b) => (b.onclick = () => {
     S.sort = b.dataset.sort; S.shuffled = false;
     $$('#sortSeg button').forEach((x) => x.classList.toggle('is-active', x === b));
