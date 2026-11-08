@@ -187,7 +187,7 @@ body:has(#viewer:not([hidden])) .shufflefab, body:has(.mk:not([hidden])) .shuffl
 .card__moods > * { padding: 2px 6px !important; font-size: 10px !important; }
 
 /* live categories: group tabs + one row of the chosen group's categories */
-.livecats { display: block !important; }
+.livecats:not([hidden]) { display: block !important; }
 .lgroups { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; margin-bottom: 12px; }
 .lgroups::-webkit-scrollbar { display: none; }
 .lgroups__tab { flex: none; border: 0; background: none; color: var(--muted); padding: 8px 14px; border-radius: 10px; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .2s, color .2s; }
