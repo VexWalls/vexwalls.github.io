@@ -474,14 +474,29 @@
       row.append(b);
     });
     const lc = $('#liveCats');
+    // group tabs on top; only the chosen group's categories are shown, in one tidy row
     lc.innerHTML = '';
-    let group = '';
-    LIVE_CATS.forEach(([k, n, g]) => {
-      if (g !== group) { group = g; lc.append(el('span', 'chip-group', esc(g))); }
+    const groups = [...new Set(LIVE_CATS.map((c) => c[2]))];
+    if (!S.liveGroup || !groups.includes(S.liveGroup)) S.liveGroup = (LIVE_CATS.find((c) => c[0] === S.liveCat) || LIVE_CATS[0])[2];
+    const tabs = el('div', 'lgroups');
+    groups.forEach((g) => {
+      const n = LIVE_CATS.filter((c) => c[2] === g).length;
+      const b = el('button', 'lgroups__tab' + (g === S.liveGroup ? ' is-active' : ''), esc(g) + (n > 1 ? ` <small>${n}</small>` : ''));
+      b.onclick = () => {
+        S.liveGroup = g;
+        const only = LIVE_CATS.filter((c) => c[2] === g);
+        if (only.length === 1) { S.liveCat = only[0][0]; S.shuffled = false; renderCats(); reset(true); } else renderCats();
+      };
+      tabs.append(b);
+    });
+    const row = el('div', 'lchips');
+    LIVE_CATS.filter((c) => c[2] === S.liveGroup).forEach(([k, n]) => {
       const b = el('button', 'chip' + (S.liveCat === k ? ' is-active' : ''), esc(n));
       b.onclick = () => { S.liveCat = k; S.shuffled = false; renderCats(); reset(true); };
-      lc.append(b);
+      row.append(b);
     });
+    lc.append(tabs);
+    if (row.children.length > 1) lc.append(row);
     const pc = $('#pfpCats');
     pc.innerHTML = '<p class="pfpcats__note">Discord, Instagram, Steam ve oyun profilleri için kare resimler. Birine dokun, kırp ve indir.</p>';
     PFP_CATS.forEach(([k, n]) => {
