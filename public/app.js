@@ -509,14 +509,14 @@
       };
       tabs.append(b);
     });
-    const row = el('div', 'lchips');
+    const lrow = el('div', 'lchips');
     LIVE_CATS.filter((c) => c[2] === S.liveGroup).forEach(([k, n]) => {
       const b = el('button', 'chip' + (S.liveCat === k ? ' is-active' : ''), esc(n));
       b.onclick = () => { S.liveCat = k; S.shuffled = false; renderCats(); reset(true); };
-      row.append(b);
+      lrow.append(b);
     });
     lc.append(tabs);
-    if (row.children.length > 1) lc.append(row);
+    if (lrow.children.length > 1) lc.append(lrow);
     const pc = $('#pfpCats');
     pc.innerHTML = '<p class="pfpcats__note">Discord, Instagram, Steam ve oyun profilleri için kare resimler. Birine dokun, kırp ve indir.</p>';
     PFP_CATS.forEach(([k, n]) => {
