@@ -834,7 +834,7 @@
       : msg ? `<b>Bir sorun oluştu</b>${esc(msg)}`
       : S.mode === 'recent' ? '<b>Henüz bir şey kullanmadın</b>Uyguladığın, indirdiğin ya da hareketli olarak açtığın duvar kağıtları burada görünür.'
       : S.mode === 'fav' ? '<b>Henüz favorin yok</b>Beğendiğin duvar kağıtlarındaki ♥ işaretine bas, burada toplansın.' + (window.CryWallAccount && !window.CryWallAccount.user ? '<br><br><button class="btn btn--primary btn--sm" onclick="CryWallAccount.open(\'signup\')">Giriş yap · favorilerin kaybolmasın</button>' : '')
-      : '<b>Sonuç bulunamadı</b>Farklı bir kelime veya daha düşük çözünürlük dene.';
+      : S.q ? `<b>“${esc(S.q)}” için sonuç yok</b>Yazımı kontrol et (örn. “Patrick Jane”) ya da İngilizce adını dene.` : '<b>Sonuç bulunamadı</b>Farklı bir kelime veya daha düşük çözünürlük dene.';
   }
 
   function card(it, idx, delayIdx) {
@@ -1209,7 +1209,13 @@
     if (typeof updateIndicators === 'function') requestAnimationFrame(updateIndicators);
     if (doReset) reset('force');
   }
-  $$('.tab').forEach((t) => (t.onclick = () => (t.dataset.open === 'ai' ? window.CWAI && CWAI.focus() : t.dataset.open ? window.CWMaker && CWMaker.open() : switchMode(t.dataset.mode))));
+  $$('.tab').forEach((t) => (t.onclick = () => {
+    if (t.dataset.open === 'ai') return window.CWAI && CWAI.focus();
+    if (t.dataset.open) return window.CWMaker && CWMaker.open();
+    // "Duvar Kağıtları" after a search: leave the search and go back to Keşfet
+    if (t.dataset.mode === 'static' && (S.q || S.colors)) { S.q = ''; S.colors = ''; S.cat = CATS[0]; S.title = 'Keşfet'; S.mode = ''; $$('#navSearch input, #heroSearch input').forEach((i) => (i.value = '')); renderCats(); }
+    switchMode(t.dataset.mode);
+  }));
   $('[data-home]').onclick = (e) => { e.preventDefault(); S.cat = CATS[0]; S.q = ''; S.colors = ''; S.title = 'Keşfet'; switchMode('static', false); renderCats(); reset(); (window.cwScrollTo ? window.cwScrollTo(0) : scrollTo(0, 0)); };
 
   // "Farklılarını göster": same category, a new random order (instead of refreshing the page)
