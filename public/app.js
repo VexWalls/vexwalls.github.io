@@ -1169,7 +1169,7 @@
   // "Farklılarını göster": same category, a new random order (instead of refreshing the page)
   $('#shuffleBtn').onclick = () => { S.shuffled = true; reset(true); };
   // the same button floating at the bottom of the screen while browsing the cards (easier to reach)
-  const fab = el('button', 'shufflefab', '↻ Farklılarını göster'); fab.type = 'button'; fab.hidden = true;
+  const fab = el('button', 'shufflefab', '↻'); fab.type = 'button'; fab.hidden = true; fab.title = 'Farklılarını göster'; fab.setAttribute('aria-label', 'Farklılarını göster');
   fab.onclick = () => $('#shuffleBtn').click();
   document.body.append(fab);
   const gridIO = new IntersectionObserver((en) => { fab.classList.toggle('is-on', en[0].isIntersecting && !$('#shuffleBtn').hidden); }, { rootMargin: '-200px 0px -200px 0px' });
