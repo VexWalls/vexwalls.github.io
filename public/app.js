@@ -548,7 +548,7 @@
   function reset(scroll) {
     remember();
     setTimeout(() => window.__cwUpdateBack && window.__cwUpdateBack(), 0);
-    S.token++; S.page = 1; S.done = false; S.seed = ''; S.items = []; S.loading = false; S.all = null;
+    S.token++; S.page = 1; S.done = false; S.seed = ''; S.items = []; S.loading = false; S.all = null; S.rpage = 0;
     const sb = $('#shuffleBtn'); if (sb) sb.hidden = S.mode === 'fav' || S.mode === 'recent';
     grid.innerHTML = ''; $('#empty').hidden = true; $('#gridCount').textContent = '';
     grid.classList.toggle('is-portrait', S.mode === 'static' && S.ratio === 'portrait');
@@ -580,9 +580,25 @@
         const all = S.page === 1 || !S.all ? (S.all = await catalogQuery()) : S.all;   // one order for all pages
         if (token !== S.token) return;
         if (all === 'blocked') { S.done = true; showEmpty('', true); return; }
-        if (S.page === 1) $('#gridCount').textContent = nf.format(all.length) + ' duvar kağıdı';
+        if (S.page === 1) $('#gridCount').textContent = S.colors ? nf.format(all.length) + ' duvar kağıdı' : 'Binlerce duvar kağıdı · kaydırdıkça yenileri gelir';
         list = all.slice((S.page - 1) * 24, S.page * 24);
-        if (S.page * 24 >= all.length) S.done = true;
+        if (S.page * 24 >= all.length) {
+          // the nightly catalog (~250) is used up: keep going with the whole of Wallhaven for this category
+          if (S.colors || !S.cat.q) S.done = true;
+          else {
+            S.rpage = (S.rpage || 0) + 1;
+            const p = new URLSearchParams({ q: S.cat.q, categories: S.cat.c, sorting: S.sort === 'toplist' ? 'favorites' : S.sort, atleast: S.res, page: S.rpage });
+            if (S.ratio) p.set('ratios', S.ratio);
+            if (S.sort === 'random') { S.seed = S.seed || Math.random().toString(36).slice(2, 8); p.set('seed', S.seed); }
+            try {
+              const r = await fetch(SEARCH_URL + '?search=' + encodeURIComponent(S.cat.q) + '&' + p).then((x) => x.json());
+              if (token !== S.token) return;
+              const have = new Set(S.items.map((x) => x.id).concat(list.map((x) => x.id)));
+              list = list.concat((r.data || []).map((w) => toImg(w, S.cat)).filter((x) => !have.has(x.id)));
+              if (!r.meta || S.rpage >= r.meta.last_page) S.done = true;
+            } catch { S.done = true; }
+          }
+        }
       } else if (CATALOG && S.mode === 'live') {
         const all = S.page === 1 || !S.all ? (S.all = S.liveCat === 'all' ? await liveAll() : S.shuffled ? shuffle((await liveCatalog(S.liveCat)).slice()) : await liveCatalog(S.liveCat)) : S.all;
         if (token !== S.token) return;
