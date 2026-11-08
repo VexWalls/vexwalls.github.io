@@ -20,8 +20,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("VexWalls — ücretsiz 4K ve hareketli duvar kağıtları")]
 [assembly: AssemblyCompany("VexWalls")]
 [assembly: AssemblyCopyright("© 2026 VexWalls")]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
 
 static class VexWallsApp
 {
@@ -38,7 +38,8 @@ static class VexWallsApp
         {
             string exe = Assembly.GetExecutingAssembly().Location;
             if (args.Length > 0 && args[0] == "--uninstall") { Uninstall(); return 0; }
-            if (args.Length > 0 && args[0] == "--version") { Console.WriteLine("VexWalls 1.2"); return 0; }
+            if (args.Length > 0 && args[0] == "--version") { Console.WriteLine("VexWalls 1.3"); return 0; }
+            if (args.Length > 0 && args[0] == "--tray") { RunTray(); return 0; }
 
             bool installed = string.Equals(Path.GetDirectoryName(exe), InstallDir, StringComparison.OrdinalIgnoreCase);
             if (!installed)
@@ -51,6 +52,7 @@ static class VexWallsApp
                     AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             EnsureHelper();
+            StartTray();
             OpenWindow();
             return 0;
         }
@@ -64,11 +66,11 @@ static class VexWallsApp
     // ---------- install ----------
     static void Install(string exe)
     {
+        StopHelper(); StopOthers();      // free the files before replacing them (update)
         Directory.CreateDirectory(Path.Combine(InstallDir, "tools"));
         foreach (string f in Payload) WriteResource(f, Path.Combine(InstallDir, f));
         WriteResource("vexwalls.ico", Path.Combine(InstallDir, "vexwalls.ico"));
         string target = Path.Combine(InstallDir, "VexWalls.exe");
-        StopHelper();
         File.Copy(exe, target, true);
 
         string ico = Path.Combine(InstallDir, "vexwalls.ico");
@@ -77,12 +79,12 @@ static class VexWallsApp
         string startup = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
         Shortcut(Path.Combine(startMenu, "VexWalls.lnk"), target, "", ico, "VexWalls duvar kağıtları");
         Shortcut(Path.Combine(desktop, "VexWalls.lnk"), target, "", ico, "VexWalls duvar kağıtları");
-        Shortcut(Path.Combine(startup, "VexWalls Yardimci.lnk"), PowerShell(), HelperArgs(), ico, "VexWalls yardımcısı (arka planda)");
+        Shortcut(Path.Combine(startup, "VexWalls Yardimci.lnk"), target, "--tray", ico, "VexWalls (saatin yanındaki simge + yardımcı)");
 
         using (RegistryKey k = Registry.CurrentUser.CreateSubKey(UninstallKey))
         {
             k.SetValue("DisplayName", "VexWalls");
-            k.SetValue("DisplayVersion", "1.2");
+            k.SetValue("DisplayVersion", "1.3");
             k.SetValue("Publisher", "VexWalls");
             k.SetValue("DisplayIcon", ico);
             k.SetValue("InstallLocation", InstallDir);
@@ -143,6 +145,18 @@ static class VexWallsApp
         for (int i = 0; i < 20 && !HelperUp(); i++) Thread.Sleep(300);
     }
 
+    // the tray icon / video player from the install folder (so files can be replaced or removed)
+    static void StopOthers()
+    {
+        int me = Process.GetCurrentProcess().Id;
+        foreach (string name in new[] { "VexWalls", "VexWallsLive" })
+            foreach (Process p in Process.GetProcessesByName(name))
+            {
+                try { if (p.Id != me && p.MainModule.FileName.StartsWith(InstallDir, StringComparison.OrdinalIgnoreCase)) { p.Kill(); p.WaitForExit(2000); } }
+                catch { }
+            }
+    }
+
     static void StopHelper()
     {
         foreach (Process p in Process.GetProcessesByName("powershell"))
@@ -161,6 +175,59 @@ static class VexWallsApp
         using (var s = new System.Management.ManagementObjectSearcher("SELECT CommandLine FROM Win32_Process WHERE ProcessId = " + pid))
             foreach (System.Management.ManagementObject o in s.Get()) return o["CommandLine"] as string;
         return null;
+    }
+
+    // ---------- tray icon (next to the clock; stays when the window is closed) ----------
+    const string TrayMutex = "VexWallsTrayIcon";
+    static void StartTray()
+    {
+        Mutex m;
+        if (Mutex.TryOpenExisting(TrayMutex, out m)) { m.Dispose(); return; }     // already there
+        string exe = Path.Combine(InstallDir, "VexWalls.exe");
+        if (!File.Exists(exe)) exe = Assembly.GetExecutingAssembly().Location;
+        try { Process.Start(exe, "--tray"); } catch { }
+    }
+
+    static void RunTray()
+    {
+        bool created;
+        using (var mutex = new Mutex(true, TrayMutex, out created))
+        {
+            if (!created) return;
+            EnsureHelper();
+            Application.EnableVisualStyles();
+            var menu = new ContextMenuStrip();
+            menu.Items.Add("VexWalls'u aç", null, (s, e) => OpenWindow());
+            menu.Items.Add("Hareketli duvar kağıdını durdur", null, (s, e) => Get("http://localhost:8790/api/live/stop"));
+            menu.Items.Add("İndirilen duvar kağıtları", null, (s, e) =>
+            {
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "VexWalls");
+                Directory.CreateDirectory(dir); Process.Start("explorer.exe", "\"" + dir + "\"");
+            });
+            menu.Items.Add(new ToolStripSeparator());
+            var icon = new NotifyIcon { Text = "VexWalls", ContextMenuStrip = menu, Visible = true };
+            menu.Items.Add("Çıkış (her şeyi kapat)", null, (s, e) =>
+            {
+                Get("http://localhost:8790/api/live/stop");
+                StopHelper();
+                icon.Visible = false; Application.Exit();
+            });
+            try
+            {
+                string ico = Path.Combine(InstallDir, "vexwalls.ico");
+                icon.Icon = File.Exists(ico) ? new System.Drawing.Icon(ico) : System.Drawing.Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location);
+            }
+            catch { icon.Icon = System.Drawing.SystemIcons.Application; }
+            icon.DoubleClick += (s, e) => OpenWindow();
+            icon.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) OpenWindow(); };
+            Application.Run();
+            icon.Dispose();
+        }
+    }
+
+    static void Get(string url)
+    {
+        try { var r = (HttpWebRequest)WebRequest.Create(url); r.Timeout = 3000; using (r.GetResponse()) { } } catch { }
     }
 
     // ---------- window ----------
@@ -193,7 +260,7 @@ static class VexWallsApp
     {
         if (MessageBox.Show("VexWalls bilgisayarından kaldırılsın mı?\n(İndirdiğin duvar kağıtları Resimler klasöründe kalır.)",
                 AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-        StopHelper();
+        StopHelper(); StopOthers();
         foreach (string lnk in new[] {
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "VexWalls.lnk"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "VexWalls.lnk"),
