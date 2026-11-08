@@ -159,3 +159,4 @@ html:has(.mock:not([hidden])) { overflow: hidden; }
 .livebar #liveBarTitle { font-weight: 600; }
 .livebar .btn, .livebar button { padding: 5px 12px !important; font-size: 12.5px !important; }
 @media (max-width: 600px) { .livebar { left: 12px !important; bottom: 14px !important; max-width: calc(100vw - 90px); } }
+.tagcat--heavy { background: rgba(255,170,60,.92) !important; color: #1a1205 !important; }

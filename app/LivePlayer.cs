@@ -78,31 +78,62 @@ class WallForm : Form
         panel.Dock = DockStyle.Fill; panel.BackColor = Color.Black;
         Controls.Add(panel);
     }
-    public void SetFrame(byte[] f, int w, int h) { panel.SetFrame(f, w, h); }
+    public void SetFrame(byte[] f, int w, int h, double s) { panel.SetFrame(f, w, h, s); }
 }
 
+// Paints the video. Frames live in two GDI DIB sections (previous + current). When the video is
+// slowed down, the panel repaints ~60 times a second and cross-fades from the previous frame to
+// the current one, so slow motion stays smooth instead of stepping (frame blending).
 class VideoPanel : Panel
 {
-    byte[] frame; int vw, vh; Native.BITMAPINFOHEADER bmi;
+    IntPtr dcPrev, dcCur, bmpPrev, bmpCur, bitsPrev, bitsCur;
+    int vw, vh; bool has; double t0, interval = 1 / 30.0; bool blend;
+    readonly Stopwatch clock = Stopwatch.StartNew();
     readonly object gate = new object();
-    public void SetFrame(byte[] f, int w, int h)
+    readonly System.Windows.Forms.Timer tick = new System.Windows.Forms.Timer { Interval = 15 };
+    public VideoPanel() { tick.Tick += (s, e) => Invalidate(); }
+
+    void Alloc(int w, int h)
     {
-        lock (gate) { frame = f; vw = w; vh = h; bmi = new Native.BITMAPINFOHEADER { biSize = 40, biWidth = w, biHeight = -h, biPlanes = 1, biBitCount = 32 }; }
-        try { BeginInvoke((MethodInvoker)Invalidate); } catch { }
+        vw = w; vh = h;
+        var bi = new Native.BITMAPINFOHEADER { biSize = 40, biWidth = w, biHeight = -h, biPlanes = 1, biBitCount = 32 };
+        dcPrev = Native.CreateCompatibleDC(IntPtr.Zero); bmpPrev = Native.CreateDIBSection(dcPrev, ref bi, 0, out bitsPrev, IntPtr.Zero, 0); Native.SelectObject(dcPrev, bmpPrev);
+        dcCur = Native.CreateCompatibleDC(IntPtr.Zero); bmpCur = Native.CreateDIBSection(dcCur, ref bi, 0, out bitsCur, IntPtr.Zero, 0); Native.SelectObject(dcCur, bmpCur);
     }
-    protected override void OnPaintBackground(PaintEventArgs e) { if (frame == null) base.OnPaintBackground(e); }
+    // called by the decoder thread when a frame is due; frameSeconds = how long it stays on screen
+    public void SetFrame(byte[] f, int w, int h, double frameSeconds)
+    {
+        lock (gate)
+        {
+            if (dcCur == IntPtr.Zero) Alloc(w, h);
+            // the current frame becomes the previous one, the new frame is written into the other buffer
+            IntPtr d = dcPrev; dcPrev = dcCur; dcCur = d; IntPtr b = bitsPrev; bitsPrev = bitsCur; bitsCur = b;
+            Marshal.Copy(f, 0, bitsCur, Math.Min(f.Length, w * h * 4));
+            interval = Math.Max(0.005, frameSeconds); t0 = clock.Elapsed.TotalSeconds;
+            blend = has && frameSeconds > 1 / 40.0;     // slower than ~40 fps on screen: smooth it
+            has = true;
+        }
+        try { BeginInvoke((MethodInvoker)(() => { tick.Enabled = blend; Invalidate(); })); } catch { }
+    }
+    protected override void OnPaintBackground(PaintEventArgs e) { if (!has) base.OnPaintBackground(e); }
     protected override void OnPaint(PaintEventArgs e)
     {
         lock (gate)
         {
-            if (frame == null) return;
+            if (!has) return;
             int W = ClientSize.Width, H = ClientSize.Height;
             double k = Math.Max((double)W / vw, (double)H / vh);     // "cover": fill, crop the overflow
             int sw = (int)Math.Round(W / k), sh = (int)Math.Round(H / k), sx = (vw - sw) / 2, sy = (vh - sh) / 2;
             IntPtr dc = e.Graphics.GetHdc();
             Native.SetStretchBltMode(dc, k > 1.01 || k < 0.99 ? 4 : 3);
             Native.SetBrushOrgEx(dc, 0, 0, IntPtr.Zero);
-            Native.StretchDIBits(dc, 0, 0, W, H, sx, vh - sy - sh, sw, sh, frame, ref bmi, 0, 0x00CC0020);
+            double a = blend ? Math.Min(1, (clock.Elapsed.TotalSeconds - t0) / interval) : 1;
+            if (a >= 0.999) Native.StretchBlt(dc, 0, 0, W, H, dcCur, sx, sy, sw, sh, 0x00CC0020);
+            else
+            {
+                Native.StretchBlt(dc, 0, 0, W, H, dcPrev, sx, sy, sw, sh, 0x00CC0020);
+                Native.AlphaBlend(dc, 0, 0, W, H, dcCur, sx, sy, sw, sh, new Native.BLENDFUNCTION { SourceConstantAlpha = (byte)(a * 255) });
+            }
             e.Graphics.ReleaseHdc(dc);
         }
     }
@@ -180,7 +211,7 @@ class Decoder
 
         byte[][] bufs = { new byte[vw * vh * 4], new byte[vw * vh * 4] }; int bi = 0;
         var clock = Stopwatch.StartNew();
-        long loopStart = 0, lastTs = 0;     // video time (100 ns) where the current loop began
+        long loopStart = 0, lastTs = 0, prevTs = 0;     // video time (100 ns) where the current loop began
 
         while (!stop)
         {
@@ -192,6 +223,7 @@ class Decoder
                 var pv = new MF.PROPVARIANT { vt = 20, hVal = 0 };
                 reader.SetCurrentPosition(Guid.Empty, ref pv);
                 loopStart += lastTs + 333333;   // continue the clock after the last frame
+                prevTs = 0;
                 continue;
             }
             if (sample == null) continue;
@@ -209,7 +241,9 @@ class Decoder
             if (wait > 0.002) Thread.Sleep((int)(wait * 1000));
             else if (wait < -0.5) { clock = Stopwatch.StartNew(); loopStart = -ts; }   // fell far behind (sleep/resume): resync
 
-            foreach (WallForm f in forms) f.SetFrame(frame, vw, vh);
+            double show = prevTs > 0 && ts > prevTs ? (ts - prevTs) / 1e7 / speed : 1 / 30.0 / speed;   // how long this frame stays
+            prevTs = ts;
+            foreach (WallForm f in forms) f.SetFrame(frame, vw, vh, show);
         }
         MF.MFShutdown();
     }
@@ -234,6 +268,12 @@ static class Native
     [DllImport("user32.dll")] public static extern IntPtr GetDC(IntPtr h);
     [DllImport("user32.dll")] public static extern int ReleaseDC(IntPtr h, IntPtr dc);
     [DllImport("gdi32.dll")] public static extern int SetStretchBltMode(IntPtr dc, int mode);
+    [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleDC(IntPtr dc);
+    [DllImport("gdi32.dll")] public static extern IntPtr CreateDIBSection(IntPtr dc, ref BITMAPINFOHEADER bmi, uint usage, out IntPtr bits, IntPtr section, uint offset);
+    [DllImport("gdi32.dll")] public static extern IntPtr SelectObject(IntPtr dc, IntPtr obj);
+    [DllImport("gdi32.dll")] public static extern bool StretchBlt(IntPtr dc, int xd, int yd, int wd, int hd, IntPtr src, int xs, int ys, int ws, int hs, uint rop);
+    [DllImport("msimg32.dll")] public static extern bool AlphaBlend(IntPtr dc, int xd, int yd, int wd, int hd, IntPtr src, int xs, int ys, int ws, int hs, BLENDFUNCTION f);
+    [StructLayout(LayoutKind.Sequential)] public struct BLENDFUNCTION { public byte BlendOp, BlendFlags, SourceConstantAlpha, AlphaFormat; }
     [DllImport("gdi32.dll")] public static extern bool SetBrushOrgEx(IntPtr dc, int x, int y, IntPtr old);
     [DllImport("gdi32.dll")] public static extern int StretchDIBits(IntPtr dc, int xd, int yd, int wd, int hd, int xs, int ys, int ws, int hs, byte[] bits, ref BITMAPINFOHEADER bmi, uint usage, uint rop);
     [StructLayout(LayoutKind.Sequential)]

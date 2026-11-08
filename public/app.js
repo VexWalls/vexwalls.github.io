@@ -429,6 +429,8 @@
   }
   // playback speed of live wallpapers (kept on this device); the preview in the window plays at it too
   let liveSpeed = (() => { try { return +localStorage.getItem('crywall.liveSpeed') || 1; } catch { return 1; } })();
+  // live wallpapers decode full-HD video on the CPU: fine for most PCs, heavy for weak ones (≤4 cores or ≤4 GB)
+  const liveLight = () => (navigator.hardwareConcurrency || 8) > 4 && (navigator.deviceMemory || 8) > 4;
   async function applyLive(it) {
     const mon = multi() && S.mon !== 'span' ? S.mon : 'all';
     const t = toast('Hareketli duvar kağıdı hazırlanıyor…', 'Video ilk seferde indiriliyor, birkaç saniye sürebilir.', 'wait', 0);
@@ -436,6 +438,7 @@
       await api(API + '/api/live/apply', { id: it.id, title: it.title, monitor: mon, speed: liveSpeed });
       addRecent(it);
       t.set('Hareketli duvar kağıdı açıldı' + (multi() ? ` (${monName(mon)})` : ''), 'Masaüstüne geçince görebilirsin.', 'ok', 5000);
+      if (!liveLight()) setTimeout(() => toast('Bu bilgisayarı biraz zorlayabilir', 'Yavaşlama olursa sol alttaki "Durdur"a basman yeterli.', 'wait', 6000), 1200);
       await status();
     } catch (e) { t.set('Açılamadı', serverHint(e), 'err', 6000); }
   }
@@ -810,7 +813,7 @@
         <img src="${esc(it.thumb)}" alt="${esc(it.title)}" loading="lazy" decoding="async">
         <video muted loop playsinline preload="none"></video>
         <div class="card__tags">
-          <span class="tagcat tagcat--live">● CANLI</span>${it.catName ? `<span class="tagcat">${esc(it.catName)}</span>` : ''}${it.uhd ? '<span class="tagcat tagcat--4k">4K</span>' : ''}
+          <span class="tagcat tagcat--live">● CANLI</span>${liveLight() ? '<span class="tagcat tagcat--fit" tabindex="0" data-tip="Bilgisayarını zorlamaz, akıcı oynar.">✓ Akıcı</span>' : '<span class="tagcat tagcat--fit tagcat--heavy" tabindex="0" data-tip="Bilgisayarını zorlayabilir. Yine de kullanabilirsin; yavaşlarsa durdurman yeterli.">⚠ Ağır</span>'}${it.catName ? `<span class="tagcat">${esc(it.catName)}</span>` : ''}${it.uhd ? '<span class="tagcat tagcat--4k">4K</span>' : ''}
           <div class="card__moods">${moodHtml(it)}</div>
         </div>
         <div class="card__overlay">
@@ -1017,7 +1020,7 @@
       a.innerHTML = monitorPicker('live') + `
         ${here ? `<button class="btn" data-act="stop" data-stop="${esc(here.monitor)}">${ICON.stop}Bu ekranda durdur</button>`
                : `<button class="btn btn--primary" data-act="live">${ICON.play}Hareketli olarak uygula</button>`}
-        <label class="speedpick"><span>Hız</span><input type="range" min="0.25" max="2" step="0.05" value="${liveSpeed}" data-speedrange style="--p:${((liveSpeed - 0.25) / 1.75) * 100}%"><b>${liveSpeed.toFixed(2).replace('.', ',')}x</b></label>
+        ${here ? `<label class="speedpick"><span>Hız</span><input type="range" min="0.25" max="2" step="0.05" value="${liveSpeed}" data-speedrange style="--p:${((liveSpeed - 0.25) / 1.75) * 100}%"><b>${liveSpeed.toFixed(2).replace('.', ',')}x</b></label>` : ""}
         <div class="row">${fav}${share}${S.lives.length && !here ? `<button class="btn" data-act="stop" data-stop="all">${ICON.stop}Tümünü durdur</button>` : ''}</div>
         <p class="note">Video, masaüstü simgelerinin arkasında sessiz ve sonsuz döngüde oynar.${multi() ? ' Her ekrana ayrı video koyabilirsin.' : ''} Bilgisayar yeniden başlatılınca normal duvar kağıdına döner.</p>`;
     }
