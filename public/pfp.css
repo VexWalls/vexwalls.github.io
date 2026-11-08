@@ -179,3 +179,9 @@ body:has(#viewer:not([hidden])) .shufflefab, body:has(.mk:not([hidden])) .shuffl
 .totop svg { width: 17px !important; height: 17px !important; }
 .aipop { bottom: 122px !important; }
 @media (max-width: 600px) { .shufflefab { right: 62px; bottom: 14px !important; } .aifab { right: 14px !important; bottom: 60px !important; } .aipop { bottom: 108px !important; } }
+
+/* card badges: small, so they don't cover the picture */
+.card__tags { gap: 4px !important; }
+.card__tags .tagcat { padding: 3px 7px !important; font-size: 10.5px !important; border-radius: 6px !important; }
+.card__moods { gap: 3px !important; }
+.card__moods > * { padding: 2px 6px !important; font-size: 10px !important; }

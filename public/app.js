@@ -548,7 +548,7 @@
   function reset(scroll) {
     remember();
     setTimeout(() => window.__cwUpdateBack && window.__cwUpdateBack(), 0);
-    S.token++; S.page = 1; S.done = false; S.seed = ''; S.items = []; S.loading = false; S.all = null; S.rpage = 0;
+    S.token++; S.page = 1; S.done = false; S.seed = ''; S.items = []; S.loading = false; S.all = null; S.rpage = 0; S.qMode = '';
     const sb = $('#shuffleBtn'); if (sb) sb.hidden = S.mode === 'fav' || S.mode === 'recent';
     grid.innerHTML = ''; $('#empty').hidden = true; $('#gridCount').textContent = '';
     grid.classList.toggle('is-portrait', S.mode === 'static' && S.ratio === 'portrait');
@@ -620,8 +620,14 @@
         if (S.colors) p.set('colors', S.colors);
         if (S.seed) p.set('seed', S.seed);
         // free-text search: the PC helper, or (website) our Cloudflare service that searches all of Wallhaven
-        const r = API ? await fetch(API + '/api/search?' + p).then((x) => x.json())
-          : await fetch(SEARCH_URL + '?search=' + encodeURIComponent(p.get('q')) + '&' + p).then((x) => x.json());
+        // Typed searches first look for the exact tag ("the witcher" → only pictures tagged The Witcher,
+        // most loved first); if that finds too little, the loose word search is used for this search.
+        const plainQ = p.get('q'), exact = S.q && !/^[+\-"#]|id:/.test(S.q) && S.qMode !== 'loose';
+        if (exact) p.set('q', '+"' + plainQ.replace(/"/g, '') + '"');
+        const get = () => (API ? fetch(API + '/api/search?' + p) : fetch(SEARCH_URL + '?search=' + encodeURIComponent(p.get('q')) + '&' + p)).then((x) => x.json());
+        let r = await get();
+        if (exact && S.page === 1 && (!r.meta || r.meta.total < 12)) { S.qMode = 'loose'; p.set('q', plainQ); r = await get(); }
+        else if (exact && S.page === 1) S.qMode = 'exact';
         if (token !== S.token) return;
         if (!r.data) throw new Error(r.error || 'Arama başarısız');
         if (r.blocked) { S.done = true; showEmpty('', true); return; }
