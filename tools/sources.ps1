@@ -36,8 +36,8 @@ function Get-WhFilter([string]$q) {
 $GirlTitle = [regex]::new('(?i)\b(girl|girls|woman|women|lady|waifu|maid|princess|goddess|she|her)\b')
 
 # MotionBGs: only these generic tags are used (no franchise tags).
-$CharTags = @('games', 'anime', 'league-of-legends', 'joker', 'superhero', 'marvel', 'genshin-impact', 'cartoon')
-$MbTags = @('games','anime', 'league-of-legends', 'joker', 'superhero', 'marvel', 'genshin-impact', 'cartoon', 'anime-nature', 'japan', 'torii', 'samurai', 'fantasy', 'dragon', 'knight', 'space', 'astronaut', 'black-hole',
+$CharTags = @('valorant', 'minecraft', 'fortnite', 'elden-ring', 'cyberpunk-2077', 'gta', 'call-of-duty', 'god-of-war', 'overwatch', 'apex-legends', 'hollow-knight', 'honkai-star-rail', 'zelda', 'pokemon', 'sekiro', 'assassins-creed', 'doom', 'resident-evil', 'final-fantasy', 'one-piece', 'demon-slayer', 'jujutsu-kaisen', 'attack-on-titan', 'dragon-ball', 'chainsaw-man', 'bleach', 'solo-leveling', 'star-wars', 'batman', 'dc-comics', 'rick-and-morty', 'spongebob', 'arcane', 'cute', 'games', 'anime', 'league-of-legends', 'joker', 'superhero', 'marvel', 'genshin-impact', 'cartoon')
+$MbTags = @('valorant', 'minecraft', 'fortnite', 'elden-ring', 'cyberpunk-2077', 'gta', 'call-of-duty', 'god-of-war', 'overwatch', 'apex-legends', 'hollow-knight', 'honkai-star-rail', 'zelda', 'pokemon', 'sekiro', 'assassins-creed', 'doom', 'resident-evil', 'final-fantasy', 'one-piece', 'demon-slayer', 'jujutsu-kaisen', 'attack-on-titan', 'dragon-ball', 'chainsaw-man', 'bleach', 'solo-leveling', 'star-wars', 'batman', 'dc-comics', 'rick-and-morty', 'spongebob', 'arcane', 'cute', 'games','anime', 'league-of-legends', 'joker', 'superhero', 'marvel', 'genshin-impact', 'cartoon', 'anime-nature', 'japan', 'torii', 'samurai', 'fantasy', 'dragon', 'knight', 'space', 'astronaut', 'black-hole',
     'rain', 'night', 'sunset', 'forest', 'winter', 'snow', 'water', 'mountain', 'autumn-leaves', 'landscape', 'nature',
     'car', 'sports-cars', 'animal', 'cat', 'dog', 'dark', 'cyberpunk', 'technology', 'purple', 'blue', 'red', 'white')
 

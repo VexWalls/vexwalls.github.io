@@ -166,7 +166,7 @@ Get-ChildItem $ThumbDir -Filter *.jpg -ErrorAction SilentlyContinue | Where-Obje
 Write-Host "phone thumbnails: $($keepThumbs.Count) ($newThumbs new)$(if (-not $Ffmpeg) { ' — ffmpeg not found, skipped' })"
 
 # Live wallpapers (same list as LIVE_CATS in public/app.js)
-$Live = @('mb:games', 'mb:anime', 'mb:league-of-legends', 'mb:joker', 'mb:superhero', 'mb:marvel', 'mb:genshin-impact', 'mb:cartoon', 'mb:anime-nature', 'mb:japan', 'mb:samurai', 'mb:fantasy', 'mb:knight', 'mb:cyberpunk', 'mb:dark',
+$Live = @('mb:valorant', 'mb:minecraft', 'mb:fortnite', 'mb:elden-ring', 'mb:cyberpunk-2077', 'mb:gta', 'mb:call-of-duty', 'mb:god-of-war', 'mb:overwatch', 'mb:apex-legends', 'mb:hollow-knight', 'mb:honkai-star-rail', 'mb:zelda', 'mb:pokemon', 'mb:sekiro', 'mb:assassins-creed', 'mb:doom', 'mb:resident-evil', 'mb:final-fantasy', 'mb:one-piece', 'mb:demon-slayer', 'mb:jujutsu-kaisen', 'mb:attack-on-titan', 'mb:dragon-ball', 'mb:chainsaw-man', 'mb:bleach', 'mb:solo-leveling', 'mb:star-wars', 'mb:batman', 'mb:dc-comics', 'mb:rick-and-morty', 'mb:spongebob', 'mb:arcane', 'mb:cute', 'mb:games', 'mb:anime', 'mb:league-of-legends', 'mb:joker', 'mb:superhero', 'mb:marvel', 'mb:genshin-impact', 'mb:cartoon', 'mb:anime-nature', 'mb:japan', 'mb:samurai', 'mb:fantasy', 'mb:knight', 'mb:cyberpunk', 'mb:dark',
     'mb:space', 'mb:rain', 'mb:night', 'mb:sunset', 'mb:forest', 'mb:winter', 'mb:mountain', 'mb:autumn-leaves', 'mb:water',
     'mb:car', 'mb:sports-cars', 'mb:animal', 'mb:cat', 'mx:nature', 'mx:galaxy', 'mx:sea', 'mx:forest', 'mx:city', 'mx:neon', 'mx:fire')
 $liveTotal = 0
