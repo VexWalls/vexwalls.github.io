@@ -198,3 +198,4 @@ body:has(#viewer:not([hidden])) .shufflefab, body:has(.mk:not([hidden])) .shuffl
 .lchips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; margin-bottom: 14px; animation: fade .2s; }
 .lchips .chip { flex: none; padding: 6px 13px; font-size: 13px; }
 [data-mode="light"] .lgroups { background: rgba(0,0,0,.04); }
+#catGroups { margin: 0 0 14px; }

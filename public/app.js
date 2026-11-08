@@ -39,6 +39,15 @@
     { key: 'animedunya', name: 'Anime Dünyası',  q: '+anime',            c: '010', img: 'https://th.wallhaven.cc/lg/28/281d5y.jpg' },
   ];
   // Mixed views (Keşfet, home slideshow) show only a little of these categories.
+  // which group tab each category sits under (the category cards show one group at a time)
+  const CAT_GROUP = {
+    doga: 'Doğa & Manzara', manzara: 'Doğa & Manzara', dag: 'Doğa & Manzara', deniz: 'Doğa & Manzara', orman: 'Doğa & Manzara', hayvan: 'Doğa & Manzara',
+    oyun: 'Oyun, Film & Dizi', film: 'Oyun, Film & Dizi', dizi: 'Oyun, Film & Dizi', cizgi: 'Oyun, Film & Dizi', kahraman: 'Oyun, Film & Dizi',
+    anime: 'Anime', karakter: 'Anime', animedunya: 'Anime',
+    savasci: 'Karakterler', sovalye: 'Karakterler', samuray: 'Karakterler', kotu: 'Karakterler',
+    fantastik: 'Sanat & Stil', dijital: 'Sanat & Stil', soyut: 'Sanat & Stil', minimal: 'Sanat & Stil', karanlik: 'Sanat & Stil', siberpunk: 'Sanat & Stil',
+    japonya: 'Şehir, Uzay & Diğer', uzay: 'Şehir, Uzay & Diğer', sehir: 'Şehir, Uzay & Diğer', araba: 'Şehir, Uzay & Diğer',
+  };
   const RARE_CATS = new Set(['karakter', 'kotu']);
   const mixPool = () => {
     const base = CATS.filter((c) => c.key !== 'kesfet' && !RARE_CATS.has(c.key));
@@ -468,7 +477,18 @@
   function renderCats() {
     const row = $('#cats');
     row.innerHTML = '';
-    CATS.forEach((c) => {
+    // group tabs above the category cards (same idea as the live categories)
+    let gt = $('#catGroups');
+    if (!gt) { gt = el('div', 'lgroups'); gt.id = 'catGroups'; row.parentNode.insertBefore(gt, row); }
+    gt.innerHTML = '';
+    if (!S.catGroup) S.catGroup = 'Tümü';
+    ['Tümü', ...new Set(Object.values(CAT_GROUP))].forEach((g) => {
+      const n = g === 'Tümü' ? CATS.length : CATS.filter((c) => CAT_GROUP[c.key] === g).length;
+      const b = el('button', 'lgroups__tab' + (g === S.catGroup ? ' is-active' : ''), esc(g) + ` <small>${n}</small>`);
+      b.onclick = () => { S.catGroup = g; renderCats(); row.scrollLeft = 0; };
+      gt.append(b);
+    });
+    CATS.filter((c) => S.catGroup === 'Tümü' || CAT_GROUP[c.key] === S.catGroup || c.key === 'kesfet').forEach((c) => {
       const b = el('button', 'cat' + (S.cat === c && !S.q && !S.colors ? ' is-active' : ''), `<img src="${c.img}" alt="" loading="lazy"><span>${esc(c.name)}</span>`);
       b.onclick = () => { S.cat = c; S.q = ''; S.colors = ''; S.title = c.name; S.shuffled = false; renderCats(); reset(true); };
       row.append(b);
