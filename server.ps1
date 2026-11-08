@@ -223,6 +223,8 @@ function Stop-Live([string]$monitor = 'all') {
     $keep = @(); $stopped = $false
     foreach ($s in @(Get-LiveStates)) {
         if ($monitor -in 'all', 'span' -or $s.monitor -eq 'all' -or [string]$s.monitor -eq $monitor) {
+            # the video player (VexWallsLive.exe) runs as a child of live.ps1: stop it right away too
+            Get-CimInstance Win32_Process -Filter "ParentProcessId=$($s.pid)" -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
             Stop-Process -Id $s.pid -Force -ErrorAction SilentlyContinue; $stopped = $true
         } else { $keep += $s }
     }

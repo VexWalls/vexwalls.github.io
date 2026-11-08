@@ -93,6 +93,18 @@ if (-not (Test-Path $file)) {
     if (-not (Test-Path $file)) { exit 2 }
 }
 
+# New player (VexWallsLive.exe): decodes with Media Foundation and paints with GDI, the only way the
+# video shows up — in true colours, with desktop icons on or off — on Windows 11 24H2 and later.
+# It sits next to this script (installed app) or in app\dist (developer copy). The WPF player below
+# stays as a fallback when the exe is missing.
+$player = @((Join-Path $PSScriptRoot 'VexWallsLive.exe'), (Join-Path $PSScriptRoot 'app\dist\VexWallsLive.exe')) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($player) {
+    $sp = $Speed.ToString([Globalization.CultureInfo]::InvariantCulture)
+    $proc = Start-Process $player -PassThru -ArgumentList @("`"$file`"", '--monitor', $Monitor, '--speed', $sp, '--parent', $PID)
+    $proc.WaitForExit()     # server.ps1 stops live wallpapers by ending this script; the player follows within seconds
+    exit 0
+}
+
 $virtual = [System.Windows.Forms.SystemInformation]::VirtualScreen
 $screens = @([System.Windows.Forms.Screen]::AllScreens | Sort-Object { $_.Bounds.X }, { $_.Bounds.Y })
 $hideWall = ($Monitor -eq 'all') -or ($screens.Count -eq 1)

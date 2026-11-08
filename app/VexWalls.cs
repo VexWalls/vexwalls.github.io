@@ -20,8 +20,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("VexWalls — ücretsiz 4K ve hareketli duvar kağıtları")]
 [assembly: AssemblyCompany("VexWalls")]
 [assembly: AssemblyCopyright("© 2026 VexWalls")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 static class VexWallsApp
 {
@@ -29,7 +29,7 @@ static class VexWallsApp
     const string AppName = "VexWalls";
     const string UninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\VexWalls";
     static readonly string InstallDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Programs\VexWalls");
-    static readonly string[] Payload = { "server.ps1", "live.ps1", "rotate.ps1", @"tools\sources.ps1" };
+    static readonly string[] Payload = { "server.ps1", "live.ps1", "rotate.ps1", @"tools\sources.ps1", "VexWallsLive.exe" };
 
     [STAThread]
     static int Main(string[] args)
@@ -38,7 +38,7 @@ static class VexWallsApp
         {
             string exe = Assembly.GetExecutingAssembly().Location;
             if (args.Length > 0 && args[0] == "--uninstall") { Uninstall(); return 0; }
-            if (args.Length > 0 && args[0] == "--version") { Console.WriteLine("VexWalls 1.1"); return 0; }
+            if (args.Length > 0 && args[0] == "--version") { Console.WriteLine("VexWalls 1.2"); return 0; }
 
             bool installed = string.Equals(Path.GetDirectoryName(exe), InstallDir, StringComparison.OrdinalIgnoreCase);
             if (!installed)
@@ -82,7 +82,7 @@ static class VexWallsApp
         using (RegistryKey k = Registry.CurrentUser.CreateSubKey(UninstallKey))
         {
             k.SetValue("DisplayName", "VexWalls");
-            k.SetValue("DisplayVersion", "1.1");
+            k.SetValue("DisplayVersion", "1.2");
             k.SetValue("Publisher", "VexWalls");
             k.SetValue("DisplayIcon", ico);
             k.SetValue("InstallLocation", InstallDir);
