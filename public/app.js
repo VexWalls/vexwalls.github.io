@@ -538,7 +538,7 @@
     const u = new URL(location.href);
     ['c', 'm', 'l', 'p', 'q', 'w', 'v'].forEach((k) => u.searchParams.delete(k));
     if (st.mode === 'static') {
-      if (st.q && !st.title.startsWith('#')) u.searchParams.set('q', st.q);
+      if (st.q) { /* searches are not kept: a refresh starts fresh */ }
       else if (st.cat !== 'kesfet' && !st.colors && !st.q) u.searchParams.set('c', st.cat);
     } else {
       u.searchParams.set('m', st.mode);
