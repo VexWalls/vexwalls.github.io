@@ -46,6 +46,7 @@
   };
   // [key, name, group]  key = "<source>:<category>"  (mb = MotionBGs, mx = Mixkit). Generic tags only.
   const LIVE_CATS = [
+    ['all', '🎲 Hepsi (karışık)', 'Hepsi'],
     ['mb:games', 'Oyunlar', 'Oyun, Anime & Film'], ['mb:league-of-legends', 'League of Legends', 'Oyun, Anime & Film'], ['mb:genshin-impact', 'Genshin Impact', 'Oyun, Anime & Film'],
     ['mb:anime', 'Anime', 'Oyun, Anime & Film'], ['mb:superhero', 'Süper Kahramanlar', 'Oyun, Anime & Film'], ['mb:marvel', 'Marvel', 'Oyun, Anime & Film'],
     ['mb:joker', 'Joker', 'Oyun, Anime & Film'], ['mb:cartoon', 'Çizgi Film', 'Oyun, Anime & Film'],
@@ -579,10 +580,10 @@
         list = all.slice((S.page - 1) * 24, S.page * 24);
         if (S.page * 24 >= all.length) S.done = true;
       } else if (CATALOG && S.mode === 'live') {
-        const all = S.page === 1 || !S.all ? (S.all = S.shuffled ? shuffle((await liveCatalog(S.liveCat)).slice()) : await liveCatalog(S.liveCat)) : S.all;
+        const all = S.page === 1 || !S.all ? (S.all = S.liveCat === 'all' ? await liveAll() : S.shuffled ? shuffle((await liveCatalog(S.liveCat)).slice()) : await liveCatalog(S.liveCat)) : S.all;
         if (token !== S.token) return;
         const lc = LIVE_CATS.find((c) => c[0] === S.liveCat);
-        list = all.slice((S.page - 1) * 24, S.page * 24).map((v) => ({ kind: 'live', ...v, cat: S.liveCat, catName: lc ? lc[1].replace(/^\W+\s*/, '') : '' }));
+        list = all.slice((S.page - 1) * 24, S.page * 24).map((v) => ({ kind: 'live', ...v, cat: v._cat || S.liveCat, catName: v._catName || (lc ? lc[1].replace(/^\W+\s*/, '') : '') }));
         if (S.page * 24 >= all.length) S.done = true;
         if (S.page === 1) $('#gridCount').textContent = all.length + ' hareketli duvar kağıdı';
       } else if (S.mode === 'static' && S.cat.key === 'kesfet' && !S.q && !S.colors) {
@@ -641,6 +642,13 @@
       catCache[c.key] = fetch(`data/c/${c.key}.json`).then((r) => (r.ok ? r.json() : [])).then((a) => a.map((o) => fromCat(o, c))).catch(() => []);
     }
     return catCache[c.key];
+  }
+  // "Hepsi (karışık)": every live category together, shuffled (different every time)
+  async function liveAll() {
+    const cats = LIVE_CATS.filter((c) => c[0] !== 'all');
+    const lists = await Promise.all(cats.map((c) => liveCatalog(c[0]).then((a) => a.map((v) => ({ ...v, _cat: c[0], _catName: c[1] })))));
+    const seen = new Set();
+    return shuffle(lists.flat().filter((v) => !seen.has(v.id) && seen.add(v.id)));
   }
   async function liveCatalog(key) {
     if (!liveCache[key]) liveCache[key] = fetch(`data/l/${key.replace(':', '-')}.json`).then((r) => (r.ok ? r.json() : [])).catch(() => []);
