@@ -927,9 +927,11 @@
         full.onerror = () => { if (full.src !== it.full) full.src = it.full; };
       });
     } else {
-      const v = el('video', 'main-img'); v.src = cur.hd; v.poster = cur.thumb; v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
-      v.addEventListener('loadedmetadata', () => (v.playbackRate = liveSpeed));
-      v.onerror = () => { if (v.src !== cur.preview) v.src = cur.preview; };
+      const v = el('video', 'main-img'); const lv = cur; v.src = videoUrl(lv);   // the 1080p file (the 960x540 preview looks soft)
+      v.poster = cur.thumb; v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
+      // normal speed unless this one is on the desktop (then it shows the chosen speed)
+      v.addEventListener('loadedmetadata', () => (v.playbackRate = S.lives.some((l) => String(l.id) === String(lv.id)) ? liveSpeed : 1));
+      v.onerror = () => { if (!v.dataset.fb) { v.dataset.fb = 1; v.src = lv.hd || lv.preview; } };
       wrap.append(v);
     }
     $('#vKind').textContent = (cur.catName ? cur.catName + ' · ' : '') + (cur.kind === 'img' ? 'Duvar kağıdı' : 'Hareketli duvar kağıdı');
