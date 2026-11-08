@@ -173,7 +173,7 @@ $liveTotal = 0
 foreach ($lc in $Live) {
     $items = New-Object System.Collections.ArrayList
     $seen = @{}
-    foreach ($page in 1, 2, 3) {
+    foreach ($page in 1..6) {      # up to ~200 videos per live category
         try { $r = Get-LiveList $lc $page } catch { Write-Host "  $lc p$page failed: $($_.Exception.Message)"; break }
         foreach ($it in @($r.data)) { if ($it -and -not $seen[$it.id]) { $seen[$it.id] = 1; [void]$items.Add($it) } }
         if (-not $r.more) { break }
