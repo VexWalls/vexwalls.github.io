@@ -217,7 +217,11 @@
   // ---------- toasts ----------
   function toast(title, sub = '', type = '', ms = 3500) {
     const t = el('div', 'toast ' + type, `<i></i><div>${esc(title)}${sub ? `<small>${esc(sub)}</small>` : ''}</div>`);
-    $('#toasts').append(t);
+    // never pile up: the same message replaces the old one, and at most 2 are shown
+    const box = $('#toasts');
+    [...box.children].forEach((o) => { if (o.firstElementChild && o.textContent.startsWith(title)) o.remove(); });
+    while (box.children.length >= 2) box.firstElementChild.remove();
+    box.append(t);
     const kill = () => { t.classList.add('out'); setTimeout(() => t.remove(), 300); };
     if (ms) setTimeout(kill, ms);
     return { kill, set(title2, sub2, type2, ms2 = 3500) { t.className = 'toast ' + (type2 || ''); t.innerHTML = `<i></i><div>${esc(title2)}${sub2 ? `<small>${esc(sub2)}</small>` : ''}</div>`; setTimeout(kill, ms2); } };
@@ -442,14 +446,14 @@
   let liveSpeed = (() => { try { return +localStorage.getItem('crywall.liveSpeed') || 1; } catch { return 1; } })();
   // live wallpapers decode full-HD video on the CPU: fine for most PCs, heavy for weak ones (≤4 cores or ≤4 GB)
   const liveLight = () => (navigator.hardwareConcurrency || 8) > 4 && (navigator.deviceMemory || 8) > 4;
-  async function applyLive(it) {
+  async function applyLive(it, quiet = false) {     // quiet: speed change of the running one, no messages
     const mon = multi() && S.mon !== 'span' ? S.mon : 'all';
-    const t = toast('Hareketli duvar kağıdı hazırlanıyor…', 'Video ilk seferde indiriliyor, birkaç saniye sürebilir.', 'wait', 0);
+    const t = quiet ? { set() {}, kill() {} } : toast('Hareketli duvar kağıdı hazırlanıyor…', 'Video ilk seferde indiriliyor, birkaç saniye sürebilir.', 'wait', 0);
     try {
       await api(API + '/api/live/apply', { id: it.id, title: it.title, monitor: mon, speed: liveSpeed });
       addRecent(it);
       t.set('Hareketli duvar kağıdı açıldı' + (multi() ? ` (${monName(mon)})` : ''), 'Masaüstüne geçince görebilirsin.', 'ok', 5000);
-      if (!liveLight()) setTimeout(() => toast('Bu bilgisayarı biraz zorlayabilir', 'Yavaşlama olursa sol alttaki "Durdur"a basman yeterli.', 'wait', 6000), 1200);
+      if (!liveLight() && !quiet) setTimeout(() => toast('Bu bilgisayarı biraz zorlayabilir', 'Yavaşlama olursa sol alttaki "Durdur"a basman yeterli.', 'wait', 6000), 1200);
       await status();
     } catch (e) { t.set('Açılamadı', serverHint(e), 'err', 6000); }
   }
@@ -1116,7 +1120,7 @@
       clearTimeout(speedTimer);
       speedTimer = setTimeout(() => {
         try { localStorage.setItem('crywall.liveSpeed', liveSpeed); } catch {}
-        if (S.lives.some((l) => String(l.id) === String(it.id))) applyLive(it);
+        if (S.lives.some((l) => String(l.id) === String(it.id))) applyLive(it, true);
       }, 500);
     });
   }
