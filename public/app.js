@@ -604,7 +604,7 @@
         const all = S.page === 1 || !S.all ? (S.all = S.liveCat === 'all' ? await liveAll() : S.shuffled ? shuffle((await liveCatalog(S.liveCat)).slice()) : await liveCatalog(S.liveCat)) : S.all;
         if (token !== S.token) return;
         const lc = LIVE_CATS.find((c) => c[0] === S.liveCat);
-        list = all.slice((S.page - 1) * 24, S.page * 24).map((v) => ({ kind: 'live', ...v, cat: v._cat || S.liveCat, catName: v._catName || (lc ? lc[1].replace(/^\W+\s*/, '') : '') }));
+        list = all.slice((S.page - 1) * 24, S.page * 24).map((v) => ({ kind: 'live', ...v, cat: v._cat || S.liveCat, catName: v._catName || (lc ? lc[1].replace(/^[^\p{L}\d]+/u, '') : '') }));
         if (S.page * 24 >= all.length) S.done = true;
         if (S.page === 1) $('#gridCount').textContent = all.length + ' hareketli duvar kağıdı';
       } else if (S.mode === 'static' && S.cat.key === 'kesfet' && !S.q && !S.colors) {
@@ -640,7 +640,7 @@
         const r = await api(API + `/api/live/list?cat=${encodeURIComponent(S.liveCat)}&page=${S.page}`);
         if (token !== S.token) return;
         const lc = LIVE_CATS.find((c) => c[0] === S.liveCat);
-        list = (r.data || []).map((v) => ({ kind: 'live', ...v, cat: S.liveCat, catName: lc ? lc[1].replace(/^\W+\s*/, '') : '' }));
+        list = (r.data || []).map((v) => ({ kind: 'live', ...v, cat: S.liveCat, catName: lc ? lc[1].replace(/^[^\p{L}\d]+/u, '') : '' }));
         if (!r.more) S.done = true;   // a page can be empty after filtering but still have more
         if (S.page === 1) $('#gridCount').textContent = 'Simgelerin arkasında sessizce oynar';
       }
@@ -1174,13 +1174,7 @@
   $('[data-home]').onclick = (e) => { e.preventDefault(); S.cat = CATS[0]; S.q = ''; S.colors = ''; S.title = 'Keşfet'; switchMode('static', false); renderCats(); reset(); (window.cwScrollTo ? window.cwScrollTo(0) : scrollTo(0, 0)); };
 
   // "Farklılarını göster": same category, a new random order (instead of refreshing the page)
-  $('#shuffleBtn').onclick = () => { S.shuffled = true; reset(true); };
-  // the same button floating at the bottom of the screen while browsing the cards (easier to reach)
-  const fab = el('button', 'shufflefab', '↻'); fab.type = 'button'; fab.hidden = true; fab.title = 'Farklılarını göster'; fab.setAttribute('aria-label', 'Farklılarını göster');
-  fab.onclick = () => $('#shuffleBtn').click();
-  document.body.append(fab);
-  const gridIO = new IntersectionObserver((en) => { fab.classList.toggle('is-on', en[0].isIntersecting && !$('#shuffleBtn').hidden); }, { rootMargin: '-200px 0px -200px 0px' });
-  gridIO.observe(grid); fab.hidden = false;
+  // ("Farklılarını göster" removed at the owner's request: "Daha fazla göster" below the cards is enough)
   $$('#sortSeg button').forEach((b) => (b.onclick = () => {
     S.sort = b.dataset.sort; S.shuffled = false;
     $$('#sortSeg button').forEach((x) => x.classList.toggle('is-active', x === b));
