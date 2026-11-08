@@ -1,4 +1,4 @@
-// VexWalls live wallpaper player (VexWallsLive.exe).
+﻿// VexWalls live wallpaper player (VexWallsLive.exe).
 //
 // Windows 11 24H2+ only composites *GDI-drawn* layered child windows placed in Progman under the icon
 // layer: anything drawn with the GPU (WPF MediaElement, Media Player, D3D) stays invisible there, and
@@ -35,7 +35,7 @@ static class LivePlayer
             else if (args[i] == "--parent") int.TryParse(args[++i], out parent);
         }
         if (speed < 0.1 || speed > 4) speed = 1;
-        Native.SetProcessDpiAwarenessContext(new IntPtr(-4));
+        Native.SetProcessDPIAware();
 
         var screens = new List<Screen>(Screen.AllScreens);
         screens.Sort((a, b) => a.Bounds.X != b.Bounds.X ? a.Bounds.X.CompareTo(b.Bounds.X) : a.Bounds.Y.CompareTo(b.Bounds.Y));
@@ -48,57 +48,59 @@ static class LivePlayer
 
         var decoder = new Decoder(file, speed, forms);
         // attach once each window is really on screen (attaching earlier is not composited by DWM)
-        foreach (WallForm f in forms) { WallForm w = f; w.Shown += (s, e) => Desktop.Attach(w.Handle, w.Area, true); w.Show(); }
+        foreach (WallForm f in forms) { WallForm w = f; w.Shown += (s, e) => Desktop.Attach(w.Handle, w.Area, true); }
 
         // keep our place: Explorer may rebuild its layers (theme change, wallpaper change, restart)
         var keep = new System.Windows.Forms.Timer { Interval = 4000 };
         keep.Tick += (s, e) =>
         {
             if (parent != 0) { try { Process.GetProcessById(parent); } catch { Application.Exit(); return; } }
-            foreach (WallForm f in forms) Desktop.Attach(f.Handle, f.Area);
         };
         keep.Start();
         decoder.Start();
-        Application.Run();
+        for (int i = 1; i < forms.Count; i++) forms[i].Show();
+        Application.Run(forms[0]);
         decoder.Stop();
         return 0;
     }
 }
 
-// one borderless window per monitor; the newest frame is painted in WM_PAINT (layered windows only
-// show what is drawn through the normal paint cycle)
+// one window per monitor, built exactly like the setup verified on 24H2 (a plain form with a child
+// panel); the video is painted on the panel in its normal paint cycle
 class WallForm : Form
 {
     public readonly Rectangle Area;
-    byte[] frame; int vw, vh; Native.BITMAPINFOHEADER bmi;
-    readonly object gate = new object();
+    readonly VideoPanel panel = new VideoPanel();
     public WallForm(Rectangle area)
     {
         Area = area;
-        FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual;
-        Bounds = area; BackColor = Color.Black;
-        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.Opaque | ControlStyles.UserPaint, true);
+        FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; BackColor = Color.Black;
+        panel.Dock = DockStyle.Fill; panel.BackColor = Color.Black;
+        Controls.Add(panel);
     }
-    protected override bool ShowWithoutActivation { get { return true; } }
-    protected override CreateParams CreateParams
-    {
-        get { var cp = base.CreateParams; cp.ExStyle |= 0x00000080 | 0x08000000; return cp; }   // tool window, no-activate
-    }
+    public void SetFrame(byte[] f, int w, int h) { panel.SetFrame(f, w, h); }
+}
+
+class VideoPanel : Panel
+{
+    byte[] frame; int vw, vh; Native.BITMAPINFOHEADER bmi;
+    readonly object gate = new object();
     public void SetFrame(byte[] f, int w, int h)
     {
         lock (gate) { frame = f; vw = w; vh = h; bmi = new Native.BITMAPINFOHEADER { biSize = 40, biWidth = w, biHeight = -h, biPlanes = 1, biBitCount = 32 }; }
         try { BeginInvoke((MethodInvoker)Invalidate); } catch { }
     }
+    protected override void OnPaintBackground(PaintEventArgs e) { if (frame == null) base.OnPaintBackground(e); }
     protected override void OnPaint(PaintEventArgs e)
     {
         lock (gate)
         {
-            if (frame == null) { e.Graphics.Clear(Color.Black); return; }
+            if (frame == null) return;
             int W = ClientSize.Width, H = ClientSize.Height;
             double k = Math.Max((double)W / vw, (double)H / vh);     // "cover": fill, crop the overflow
             int sw = (int)Math.Round(W / k), sh = (int)Math.Round(H / k), sx = (vw - sw) / 2, sy = (vh - sh) / 2;
             IntPtr dc = e.Graphics.GetHdc();
-            Native.SetStretchBltMode(dc, k > 1.01 || k < 0.99 ? 4 : 3);   // smooth only when scaling
+            Native.SetStretchBltMode(dc, k > 1.01 || k < 0.99 ? 4 : 3);
             Native.SetBrushOrgEx(dc, 0, 0, IntPtr.Zero);
             Native.StretchDIBits(dc, 0, 0, W, H, sx, vh - sy - sh, sw, sh, frame, ref bmi, 0, 0x00CC0020);
             e.Graphics.ReleaseHdc(dc);
@@ -228,7 +230,7 @@ static class Native
     [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h, int i);
     [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr h, int i, int v);
     [DllImport("user32.dll")] public static extern bool SetLayeredWindowAttributes(IntPtr h, uint key, byte alpha, uint flags);
-    [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr ctx);
+    [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")] public static extern IntPtr GetDC(IntPtr h);
     [DllImport("user32.dll")] public static extern int ReleaseDC(IntPtr h, IntPtr dc);
     [DllImport("gdi32.dll")] public static extern int SetStretchBltMode(IntPtr dc, int mode);
@@ -312,3 +314,4 @@ interface IMFSourceReader
     [PreserveSig] int SetCurrentPosition([In, MarshalAs(UnmanagedType.LPStruct)] Guid format, ref MF.PROPVARIANT pos);
     [PreserveSig] int ReadSample(uint stream, uint control, out uint actual, out uint flags, out long ts, out IMFSample s);
 }
+
