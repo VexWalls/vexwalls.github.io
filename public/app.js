@@ -428,6 +428,7 @@
     catch (e) { t.set('İndirilemedi', serverHint(e), 'err', 6000); }
   }
   // playback speed of live wallpapers (kept on this device); the preview in the window plays at it too
+  let speedTimer = 0;
   let liveSpeed = (() => { try { return +localStorage.getItem('crywall.liveSpeed') || 1; } catch { return 1; } })();
   // live wallpapers decode full-HD video on the CPU: fine for most PCs, heavy for weak ones (≤4 cores or ≤4 GB)
   const liveLight = () => (navigator.hardwareConcurrency || 8) > 4 && (navigator.deviceMemory || 8) > 4;
@@ -1050,11 +1051,16 @@
       r.nextElementSibling.textContent = liveSpeed.toFixed(2).replace('.', ',') + 'x';
       $$('#vMedia video').forEach((v) => (v.playbackRate = liveSpeed));
     };
-    a.onchange = (e) => {
+    // send the new speed to the desktop half a second after the slider stops moving (the panel is
+    // redrawn every few seconds, so waiting for the "change" event could miss it)
+    a.addEventListener('input', (e) => {
       if (!e.target.closest('[data-speedrange]')) return;
-      try { localStorage.setItem('crywall.liveSpeed', liveSpeed); } catch {}
-      if (S.lives.some((l) => String(l.id) === String(it.id))) applyLive(it);   // already on the desktop: restart at the new speed
-    };
+      clearTimeout(speedTimer);
+      speedTimer = setTimeout(() => {
+        try { localStorage.setItem('crywall.liveSpeed', liveSpeed); } catch {}
+        if (S.lives.some((l) => String(l.id) === String(it.id))) applyLive(it);
+      }, 500);
+    });
   }
 
   async function loadTags(it) {
@@ -1146,6 +1152,12 @@
 
   // "Farklılarını göster": same category, a new random order (instead of refreshing the page)
   $('#shuffleBtn').onclick = () => { S.shuffled = true; reset(true); };
+  // the same button floating at the bottom of the screen while browsing the cards (easier to reach)
+  const fab = el('button', 'shufflefab', '↻ Farklılarını göster'); fab.type = 'button'; fab.hidden = true;
+  fab.onclick = () => $('#shuffleBtn').click();
+  document.body.append(fab);
+  const gridIO = new IntersectionObserver((en) => { fab.classList.toggle('is-on', en[0].isIntersecting && !$('#shuffleBtn').hidden); }, { rootMargin: '-200px 0px -200px 0px' });
+  gridIO.observe(grid); fab.hidden = false;
   $$('#sortSeg button').forEach((b) => (b.onclick = () => {
     S.sort = b.dataset.sort; S.shuffled = false;
     $$('#sortSeg button').forEach((x) => x.classList.toggle('is-active', x === b));
